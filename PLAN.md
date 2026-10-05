@@ -67,73 +67,119 @@ Based on `/opt/data/projects/murmur-android`'s module layout: single
 
 **Explicitly NOT done in this pass** (next agent's job, in order):
 
-## Phase 1 — Model download + first real ASR round-trip
+## Phase 1 — Model download + first real ASR round-trip ✅ (this pass, see commit)
 
-1. Port `ModelDownloader` from `murmur-android/core/ModelDownloader.kt`:
-   fetch `OmnilingualAsrModel.DOWNLOAD_URL` (a `.tar.bz2`, not a `.zip` —
-   extract with Python's `tarfile` module if `bzip2`/`tar xjf` isn't
-   available in the target build environment) into app-private storage on
-   first run. ~350MB+ one-time download for the int8 300M model — budget
-   UI/UX for a progress indicator and Wi-Fi-only prompt.
-2. `AudioCapture`: `AudioRecord` at 16kHz mono (mirror
-   `murmur-android/core/AudioCapture.kt`'s single-consumer `Channel`
-   pattern).
-3. Silero VAD (sherpa-onnx ships `silero_vad.onnx` as a release asset too)
-   to segment held-button speech before it reaches `OmnilingualAsrEngine`.
-4. Gate `OmnilingualAsrEngine` construction behind
-   `OmnilingualAsrModel.isDownloaded()` — **never** construct the
-   `OfflineRecognizer` before confirming the files exist; a missing file
-   crashes natively (no catchable exception, no stack trace, looks like
-   "app opens then closes instantly" with zero diagnostics).
-5. Milestone: press-and-hold in `MainActivity` → speak Swahili → see the
-   transcript appear on screen (proves the model + wrapper actually work
-   before any telephony/SMS logic is built on top).
+1. [x] Ported `ModelDownloader` from `murmur-android/core/ModelDownloader.kt`.
+   Fetches `model.int8.onnx` + `tokens.txt` + `silero_vad.onnx` into
+   app-private storage (`context.filesDir/models/...`) on first run — not
+   the upstream `.tar.bz2` directly; those two files were extracted once
+   (via Python's `tarfile`, confirmed working: no `bzip2`/`tar xjf` needed)
+   and re-uploaded as individual assets to THIS repo's own `models-v1`
+   GitHub Release for download stability, same pattern as
+   `murmur-android`'s `models-v1`. Verified via `gh release view --json
+   assets` that all 3 assets exist on the release with byte-for-byte
+   matching sizes (model.int8.onnx 365352120, tokens.txt 86423,
+   silero_vad.onnx 643854). Progress UI (file name, index/count, MB done/
+   total, percentage bar) shown via `MainActivity`'s `ScreenState.Downloading`
+   before the chooser becomes reachable — Wi-Fi-only prompt NOT implemented
+   (not blocking; noted as a gap).
+2. [x] `AudioCapture`: `AudioRecord` at 16kHz mono, single-consumer
+   `Channel`, ported from `murmur-android/core/AudioCapture.kt`.
+3. [x] `SpeechSegmenter` (Silero VAD) ported from
+   `murmur-android/core/SpeechSegmenter.kt` — trims silence, pads segment
+   edges, bridges quiet-word gaps — wired into `DictationController`
+   between capture and `OmnilingualAsrEngine.transcribe`.
+4. [x] `OmnilingualAsrEngine`/`SpeechSegmenter` construction gated behind
+   `ModelDownloader.isComplete()` in `MainActivity.ensureModelThenLoadEngine()`
+   — never constructed before the download gate resolves.
+5. [ ] Milestone NOT verified on a real device (no ADB/emulator in this
+   build environment, per the android-app-building skill's standing
+   limitation): `gradle compileDebugKotlin` and `gradle assembleDebug` both
+   exit 0 and produce `app/build/outputs/apk/debug/app-debug.apk`
+   (~40MB — small, confirming the model is NOT bundled), but an actual
+   press-and-hold Swahili utterance -> transcript round-trip has only been
+   verified by code review, not by running the app. Needs real-device
+   sideload testing (see Phase 5 checklist) before calling this milestone
+   fully done.
 
-## Phase 2 — Voice-confirm UX flow (core/VoiceInputController)
+## Phase 2 — Voice-confirm UX flow (core/VoiceInputController) ✅ (this pass)
 
-6. Implement `VoiceInputController.captureConfirmedUtterance`: capture →
-   transcribe → `SwahiliTts.speakAndAwait("Ulisema: <transcript>. Sawa?")`
-   (You said: `<transcript>`. Correct?) → listen for a short yes/no voice
-   response ("ndiyo"/"hapana") → return confirmed text or null/retry.
-   This is the single flow every action in the app (dial a number, say a
-   contact name, compose an SMS body) reuses — build and test it once,
-   standalone, before wiring Simu/Ujumbe around it.
-7. Decide and implement the yes/no response parse: simplest viable
-   version is just another ASR pass over a short utterance matched
-   against a tiny fixed Swahili word list ("ndiyo", "hapana", "sawa",
-   "hapana sawa", etc.) — no need for a second model.
-8. Handle silence / no response timeout distinctly from an explicit "no".
+6. [x] Implemented `VoiceInputController.captureConfirmedUtterance`:
+   speaks the prompt, captures + transcribes an utterance (own
+   `AudioCapture`/`SpeechSegmenter` instances, independent of the Phase 1
+   demo's `DictationController` so the two never share VAD state), TTS
+   reads back "Ulisema: `<transcript>`. Sawa?", then captures a second
+   short utterance for the yes/no response. Returns a
+   `ConfirmResult` (`Confirmed`/`Rejected`/`NoResponse`) rather than a
+   nullable String, so callers can distinguish an explicit "hapana" from
+   silence/timeout and react differently (item 8). Not yet verified with
+   real speech on a device — compiles against the real `AudioCapture`/
+   `SpeechSegmenter`/`TranscriptionEngine` APIs (`gradle compileDebugKotlin`
+   green) but needs the Phase 5 on-device checklist.
+7. [x] Yes/no parsing: no second model — `matchesAny` does a lowercase
+   substring match against fixed `AFFIRMATIVE_WORDS` ("ndiyo", "ndio",
+   "sawa", "sahihi", "yes") / `NEGATIVE_WORDS` ("hapana", "siyo", "sio",
+   "si sahihi", "no") sets.
+8. [x] Silence/timeout (`withTimeoutOrNull` on the capture window) is
+   `ConfirmResult.NoResponse`, distinct from `ConfirmResult.Rejected`
+   (explicit "hapana" match) — callers (`SimuScreen`/`UjumbeScreen`) give
+   different follow-up status text for each case.
 
-## Phase 3 — Simu + Ujumbe real implementation
+## Phase 3 — Simu + Ujumbe real implementation ✅ (this pass)
 
-9. Runtime permission onboarding: `CALL_PHONE`, `READ_PHONE_STATE`,
-   `READ_CONTACTS`, `WRITE_CONTACTS`, `SEND_SMS`, `READ_SMS`,
-   `RECEIVE_SMS`, `RECORD_AUDIO` — all dangerous permissions, must be
-   requested at runtime (Android 26+), with TTS-narrated rationale since
-   the user cannot read an on-screen permission dialog unassisted (a
-   sighted helper or TalkBack interop may be needed for the *first* grant
-   only — note this as a known bootstrapping gap in a later PLAN.md
-   update).
-10. `SimuRepository.searchContactsByVoicedName`: `ContentResolver` query
-    against `ContactsContract.Contacts`/`CommonDataKinds.Phone`, fuzzy-
-    match the voiced name (exact match on a spoken name transcribed by
-    ASR will rarely be perfect — budget a fuzzy/phonetic matching pass,
-    e.g. Levenshtein over normalized Swahili name forms).
-11. `SimuRepository.placeCall`: `Intent.ACTION_CALL` (needs `CALL_PHONE`)
-    after TTS confirms the number/contact.
-12. Incoming/outgoing call `BroadcastReceiver`s (`PhoneStateListener` or
-    `TelephonyCallback` on API 31+, since `PhoneStateListener` is
-    deprecated) that announce caller name/number via TTS instead of (or
-    in addition to) the system dialer UI — matches the thesis's "call
-    handling routed through the app's own UI" behavior.
-13. `UjumbeRepository.recentMessages`/`sendSms`: `ContentResolver` CRUD
-    against the SMS provider (`content://sms`) + `SmsManager.sendTextMessage`
-    (needs `SEND_SMS`); incoming-SMS `BroadcastReceiver`
-    (`SMS_RECEIVED_ACTION`) that reads new messages aloud via TTS.
-14. Wire `VoiceInputController` into both: voice-dial a spoken number OR
-    a spoken contact name (disambiguate multiple fuzzy matches via TTS
-    "Did you mean X or Y?"); voice-compose an SMS body with TTS readback
-    before send.
+9. [x] Runtime permission onboarding: all 8 dangerous permissions
+   (`RECORD_AUDIO`, `CALL_PHONE`, `READ_CONTACTS`, `WRITE_CONTACTS`,
+   `SEND_SMS`, `READ_SMS`, `RECEIVE_SMS`, `READ_PHONE_STATE`) requested
+   together in one `RequestMultiplePermissions` launch right after the
+   ASR engine finishes loading (`MainActivity.requestAllDangerousPermissionsIfNeeded`)
+   — a single predictable moment rather than scattering a surprise dialog
+   across each screen's first use. TTS-narrated rationale text per
+   permission is NOT implemented (gap — only the system permission
+   dialog's own text is shown); the very first grant still needs a
+   sighted helper or TalkBack, as previously noted.
+10. [x] `SimuRepository.searchContactsByVoicedName`: queries
+    `ContactsContract.CommonDataKinds.Phone` for every contact+number,
+    ranks by normalized Levenshtein similarity (0f-1f) against the
+    lowercased spoken name, returns the top matches above a 0.4
+    similarity floor. Phonetic (Soundex/Metaphone-style) matching was
+    considered but not implemented — plain edit-distance only; revisit if
+    real-device testing shows this is too strict/loose for common
+    mis-transcriptions.
+11. [x] `SimuRepository.placeCall`: `Intent.ACTION_CALL` with
+    `FLAG_ACTIVITY_NEW_TASK`, called only after `SimuScreen`'s voice-confirm
+    flow confirms the number/contact via TTS readback.
+12. [ ] NOT implemented: incoming/outgoing call `BroadcastReceiver`s that
+    announce caller name/number via TTS. Deferred — no code written this
+    pass.
+13. [x] `UjumbeRepository.recentMessages`/`sendSms`: `ContentResolver`
+    query against `Telephony.Sms.CONTENT_URI` (newest-first, limited);
+    `sendSms` uses `SmsManager.divideMessage`/`sendMultipartTextMessage`
+    (handles bodies over the single-SMS length) and manually inserts a
+    matching row into `content://sms/sent` (this app is not the default
+    SMS app, so the provider doesn't do this automatically). Incoming-SMS
+    `BroadcastReceiver` (`SMS_RECEIVED_ACTION`) that reads new messages
+    aloud is **NOT implemented** — deferred, same as item 12.
+14. [x] `SimuScreen`/`UjumbeScreen` wire `VoiceInputController` end to
+    end: Simu captures+confirms a spoken name/number, resolves it against
+    contacts, reads back the best fuzzy match ("Je, unamaanisha X? Sawa?")
+    for a second confirm, then calls; falls back to dialing the confirmed
+    text directly as a number if no contact match clears the similarity
+    floor. Ujumbe captures+confirms a number, then a body, reads the full
+    draft back once more, then sends. Multi-way "X or Y?" disambiguation
+    from the original item 14 wording was simplified to single best-match
+    confirm (no on-screen list selection exists for a non-sighted user to
+    operate anyway, and everything here is already sequential voice
+    confirm) — note this as a deliberate scope narrowing, not an
+    oversight.
+
+**Known gaps carried forward** (not done this pass, unchanged from
+previous phases' deferred items): incoming call/SMS `BroadcastReceiver`s
+(items 12-13's TTS-announce half), TTS-narrated permission rationale
+(item 9), Wi-Fi-only download prompt (Phase 1 item 1), and all of Phase 5's
+real-device verification checklist — this build environment has no ADB/
+emulator, so everything above is verified by `gradle compileDebugKotlin`
++ `gradle assembleDebug` exiting 0 and producing a real APK, not by
+running the app.
 
 ## Phase 4 — Gesture navigation
 

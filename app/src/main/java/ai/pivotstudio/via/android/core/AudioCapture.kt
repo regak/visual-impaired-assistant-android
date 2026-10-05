@@ -1,0 +1,104 @@
+package ai.pivotstudio.via.android.core
+
+import android.Manifest
+import android.annotation.SuppressLint
+import android.content.Context
+import android.content.pm.PackageManager
+import android.media.AudioFormat
+import android.media.AudioRecord
+import android.media.MediaRecorder
+import androidx.core.content.ContextCompat
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.ReceiveChannel
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+
+/**
+ * Captures mic audio at 16kHz mono and hands off fixed-size chunks through a
+ * single-consumer [Channel]. Ported from the sibling `murmur-android`
+ * project's `core/AudioCapture.kt` (same discipline: buffers are always
+ * copied before leaving the read loop, since [AudioRecord.read] reuses the
+ * backing array on the next call — a single consumer draining the channel
+ * in order is what keeps a held-button utterance's samples from arriving
+ * out of order or getting corrupted by a second concurrent reader).
+ */
+class AudioCapture(private val context: Context) {
+
+    private var audioRecord: AudioRecord? = null
+    private var captureJob: kotlinx.coroutines.Job? = null
+
+    fun hasMicPermission(): Boolean =
+        ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
+            PackageManager.PERMISSION_GRANTED
+
+    /**
+     * Starts capture and returns a channel the caller drains until the
+     * utterance ends (e.g. button release). Call [stop] to close the mic
+     * and the channel.
+     */
+    @SuppressLint("MissingPermission") // caller must check hasMicPermission() first
+    fun start(scope: CoroutineScope, onAmplitude: (Float) -> Unit = {}): ReceiveChannel<ShortArray> {
+        check(hasMicPermission()) { "RECORD_AUDIO permission not granted" }
+
+        val minBufferSize = AudioRecord.getMinBufferSize(
+            SAMPLE_RATE_HZ,
+            AudioFormat.CHANNEL_IN_MONO,
+            AudioFormat.ENCODING_PCM_16BIT,
+        )
+        val bufferSize = maxOf(minBufferSize, CHUNK_SAMPLES * 2)
+
+        val record = AudioRecord(
+            MediaRecorder.AudioSource.VOICE_RECOGNITION,
+            SAMPLE_RATE_HZ,
+            AudioFormat.CHANNEL_IN_MONO,
+            AudioFormat.ENCODING_PCM_16BIT,
+            bufferSize,
+        )
+        audioRecord = record
+
+        val channel = Channel<ShortArray>(capacity = Channel.UNLIMITED)
+        record.startRecording()
+
+        captureJob = scope.launch(Dispatchers.IO) {
+            val buffer = ShortArray(CHUNK_SAMPLES)
+            while (isActive && record.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
+                val read = record.read(buffer, 0, buffer.size)
+                if (read > 0) {
+                    channel.send(buffer.copyOf(read))
+                    onAmplitude(peakAmplitude(buffer, read))
+                }
+            }
+            channel.close()
+        }
+
+        return channel
+    }
+
+    /** Peak sample magnitude in [buffer], normalized to roughly 0f-1f. */
+    private fun peakAmplitude(buffer: ShortArray, len: Int): Float {
+        var peak = 0
+        for (i in 0 until len) {
+            val abs = kotlin.math.abs(buffer[i].toInt())
+            if (abs > peak) peak = abs
+        }
+        return (peak / 32768f).coerceIn(0f, 1f)
+    }
+
+    fun stop() {
+        captureJob?.cancel()
+        captureJob = null
+        audioRecord?.apply {
+            if (recordingState == AudioRecord.RECORDSTATE_RECORDING) stop()
+            release()
+        }
+        audioRecord = null
+    }
+
+    companion object {
+        const val SAMPLE_RATE_HZ = 16000
+        /** 20ms chunks at 16kHz. */
+        const val CHUNK_SAMPLES = 320
+    }
+}
