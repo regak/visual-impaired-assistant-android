@@ -6,6 +6,7 @@ import android.speech.tts.UtteranceProgressListener
 import android.util.Log
 import java.util.Locale
 import kotlin.coroutines.resume
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
 
@@ -32,6 +33,24 @@ class SwahiliTts(context: Context) {
     var localeAvailability: LocaleAvailability = LocaleAvailability.NOT_INITIALIZED
         private set
 
+    /**
+     * Resolves once the TTS engine's `onInit` callback has actually fired
+     * (NOT when [TextToSpeech]'s constructor returns, which happens
+     * synchronously before binding to the system TTS service completes).
+     * Root cause of a real "TTS silently never speaks" bug: [tts] used to
+     * be assigned synchronously inside [init], so [speakAndAwait]'s null
+     * check passed and it called [TextToSpeech.speak] on an engine that
+     * hadn't finished binding yet — `speak()` then returns a non-SUCCESS
+     * code synchronously, which (correctly, per the separate hang-fix)
+     * resumes immediately without ever producing audio. This is most
+     * likely to bite on a warm second launch, where the model is already
+     * downloaded and the ASR engine loads fast enough that the home
+     * screen's first TTS prompt fires before the TTS engine callback has
+     * run. [speakAndAwait] now suspends on this until the engine is truly
+     * ready before calling [TextToSpeech.speak].
+     */
+    private val readyDeferred = CompletableDeferred<LocaleAvailability>()
+
     private val appContext = context.applicationContext
 
     /** Must be called once (e.g. from Application.onCreate or MainActivity) before [speakAndAwait]. */
@@ -41,6 +60,7 @@ class SwahiliTts(context: Context) {
             if (status != TextToSpeech.SUCCESS || engine == null) {
                 localeAvailability = LocaleAvailability.UNAVAILABLE_FALLBACK_DEFAULT
                 if (cont.isActive) cont.resume(localeAvailability)
+                readyDeferred.complete(localeAvailability)
                 return@TextToSpeech
             }
             localeAvailability = when {
@@ -60,6 +80,7 @@ class SwahiliTts(context: Context) {
                 }
             }
             if (cont.isActive) cont.resume(localeAvailability)
+            readyDeferred.complete(localeAvailability)
         }
     }
 
@@ -80,6 +101,11 @@ class SwahiliTts(context: Context) {
      * resumes regardless, so a caller is guaranteed to get control back.
      */
     suspend fun speakAndAwait(text: String, utteranceId: String = text.hashCode().toString()) {
+        val ready = withTimeoutOrNull(READY_TIMEOUT_MS) { readyDeferred.await() }
+        if (ready == null) {
+            Log.e(TAG, "speakAndAwait: TTS engine never finished init() after ${READY_TIMEOUT_MS}ms — giving up on \"$text\" without speaking")
+            return
+        }
         val engine = tts ?: error("SwahiliTts.init() was not called")
         Log.d(TAG, "speakAndAwait: queueing \"$text\" (utteranceId=$utteranceId)")
         val completed = withTimeoutOrNull(TIMEOUT_MS) {
@@ -124,5 +150,6 @@ class SwahiliTts(context: Context) {
     companion object {
         private const val TAG = "VIA/SwahiliTts"
         private const val TIMEOUT_MS = 10_000L
+        private const val READY_TIMEOUT_MS = 15_000L
     }
 }

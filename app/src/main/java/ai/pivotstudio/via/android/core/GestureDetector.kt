@@ -64,32 +64,45 @@ fun Modifier.gestureNavigation(onGesture: (GestureEvent) -> Unit): Modifier = co
 
     pointerInput(Unit) {
         awaitEachGesture {
-            val down = awaitFirstDown(pass = PointerEventPass.Initial)
+            val down = awaitFirstDown(pass = PointerEventPass.Main)
             val downPosition = down.position
+            val downTimeMs = System.currentTimeMillis()
 
-            // Race "pointer released" against the long-press timer. Exactly
-            // one of releasedPosition / timedOut is meaningful afterward.
+            // Long-press detection WITHOUT ever cancelling a suspended
+            // awaitPointerEvent() call (no withTimeoutOrNull wrapping the
+            // event-await loop here) — cancelling a coroutine mid-suspend
+            // inside Compose's low-level pointer-input event dispatch is a
+            // known-fragile pattern that can corrupt the pointer-input
+            // node's internal state for the NEXT gesture cycle on the same
+            // surface. Likely root cause of a real "first gesture works,
+            // every gesture after it on the same surface silently does
+            // nothing" bug. Instead: poll elapsed time against each real
+            // pointer event (Android delivers move events for a held-but-
+            // stationary finger at the touch sampling rate, so this still
+            // detects a long hold reliably) and only ever await events
+            // that actually arrive, uninterrupted.
             var releasedPosition: Offset? = null
-            val longPressElapsed = withTimeoutOrNull(GestureTuning.LONG_PRESS_MS) {
-                while (true) {
-                    val event = awaitPointerEvent(pass = PointerEventPass.Initial)
-                    val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                    if (change.changedToUp()) {
-                        releasedPosition = change.position
-                        break
+            var longPressFired = false
+            while (true) {
+                val event = awaitPointerEvent(pass = PointerEventPass.Main)
+                val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                if (change.changedToUp()) {
+                    releasedPosition = change.position
+                    break
+                }
+                if (!longPressFired && System.currentTimeMillis() - downTimeMs >= GestureTuning.LONG_PRESS_MS) {
+                    val dxSoFar = change.position.x - downPosition.x
+                    val dySoFar = change.position.y - downPosition.y
+                    if (abs(dxSoFar) < minSwipePx && abs(dySoFar) < minSwipePx) {
+                        longPressFired = true
+                        onGesture(GestureEvent.LongPress)
                     }
                 }
             }
 
-            if (longPressElapsed == null) {
-                // Timer won the race: still held past the long-press threshold.
-                onGesture(GestureEvent.LongPress)
-                // Drain until actual release so the next gesture starts clean.
-                while (true) {
-                    val event = awaitPointerEvent(pass = PointerEventPass.Initial)
-                    val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                    if (change.changedToUp()) break
-                }
+            if (longPressFired) {
+                // Already reported; just let this gesture cycle end cleanly
+                // now that the pointer has been released.
                 return@awaitEachGesture
             }
 
@@ -109,15 +122,19 @@ fun Modifier.gestureNavigation(onGesture: (GestureEvent) -> Unit): Modifier = co
 
             // Quick release with little movement -> candidate tap. Wait for
             // a second down within the double-tap window to disambiguate.
+            // This is the one spot that still races a timeout against a
+            // suspend call, but awaitFirstDown (unlike awaitPointerEvent
+            // mid-gesture) starts a fresh wait with no prior pointer state
+            // to corrupt, so cancelling it on timeout is safe.
             val secondDown = withTimeoutOrNull(GestureTuning.DOUBLE_TAP_WINDOW_MS) {
-                awaitFirstDown(pass = PointerEventPass.Initial)
+                awaitFirstDown(pass = PointerEventPass.Main)
             }
             if (secondDown != null) {
                 onGesture(GestureEvent.DoubleTap)
                 // Consume the second tap's release so it doesn't leak into
                 // the next gesture as a stray single tap.
                 while (true) {
-                    val event = awaitPointerEvent(pass = PointerEventPass.Initial)
+                    val event = awaitPointerEvent(pass = PointerEventPass.Main)
                     val change = event.changes.firstOrNull { it.id == secondDown.id } ?: break
                     if (change.changedToUp()) break
                 }
