@@ -307,31 +307,42 @@ one feature at a time, each independently verified, once this is solid.
     depth 0, long-press still just announces the (placeholder) sub-menu
     description text — it hasn't been given a destructive action of its
     own yet, so there's nothing to "undo" there.
-23. [ ] NOT done this pass, by explicit scope: re-wiring TTS, ASR/STT,
-    model download, voice-confirm loop, Simu/Ujumbe real screens, and
+23. [x] **TTS re-attached to the gesture-nav screens** (explicit user
+    request — "activate the TTS for the main nav window"): a single
+    `SwahiliTts` instance is created and `init()`'d in `GestureNavRoot`
+    (via `DisposableEffect`, torn down with `shutdown()` on dispose).
+    Every gesture outcome that updates the on-screen `statusMessage` is
+    now ALSO spoken aloud, via `LaunchedEffect(statusMessage) {
+    tts.speakAndAwait(statusMessage) }` — no new TTS logic was written;
+    this reuses the exact `SwahiliTts` class already fixed for the
+    init-race ("ready" vs "constructed") bug found earlier in this
+    phase's history. `SwahiliTts.speakAndAwait` already defaults to
+    `TextToSpeech.QUEUE_FLUSH`, so a second gesture fired while a
+    previous utterance is still playing correctly interrupts it instead
+    of queuing up a backlog.
+24. [ ] NOT done this pass, by explicit scope: re-wiring ASR/STT, model
+    download, voice-confirm loop, Simu/Ujumbe real screens, and
     permissions back onto this pager. Next steps, one at a time, each
     independently verified before moving to the next:
     - Re-attach `SimuScreen`/`UjumbeScreen` as the pager's page content
-      (currently just placeholder text + gesture status field) — still
-      without TTS/ASR wired in, so the real UI structure gets
-      pager-nav-tested in isolation first.
+      (currently just placeholder text + gesture status field, now also
+      spoken) — still without ASR wired in, so the real UI structure
+      gets pager-nav-tested in isolation first.
     - Re-attach `ModelDownloader`'s download-gate screen in front of the
       pager.
-    - Re-attach `SwahiliTts` (fixing its init-race bug from this pass's
-      history) so the status-field text above is also spoken aloud, not
-      just displayed — no ASR yet.
     - Re-attach ASR/VoiceInputController/voice-confirm loop last, since
       it's the most complex and highest-risk piece.
     - The depth-1 sub-menu's non-back options (e.g. "Anwani mpya",
       "Soma ujumbe wa hivi karibuni") currently just set status text —
       wiring them to real `SimuRepository`/`UjumbeRepository` actions is
       part of the re-attachment work above, not done yet.
-24. [ ] **Still not verified on a real device** (no ADB/emulator in this
+25. [ ] **Still not verified on a real device** (no ADB/emulator in this
     build environment, the same standing limitation noted in every
     phase): `gradle compileDebugKotlin` and `gradle assembleDebug` both
-    exit 0 and produce a real APK, but whether the two-level nav
-    (double-tap to enter, long-press-dialog "Rudi nyuma" to exit) feels
-    right on an actual phone has NOT been confirmed by anyone yet. This
+    exit 0 and produce a real APK, but whether the TTS actually speaks
+    reliably alongside rapid gesture input on an actual phone — and
+    whether `QUEUE_FLUSH` interrupts cleanly rather than clipping mid-word
+    in a confusing way — has NOT been confirmed by anyone yet. This
     is the first thing to check before building anything else on top.
 
 ## Phase 5 — Hardening & on-device testing checklist

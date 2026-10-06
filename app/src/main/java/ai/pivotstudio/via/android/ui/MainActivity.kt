@@ -20,17 +20,23 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import ai.pivotstudio.via.android.tts.SwahiliTts
+import kotlinx.coroutines.launch
 
 /**
  * Entry point — gestures-only reset (explicit user direction, see PLAN.md
@@ -64,10 +70,15 @@ import androidx.compose.ui.unit.sp
  *   description. At depth 1, goes DIRECTLY back to depth 0 — the ONLY
  *   way back this pass, by explicit user choice.
  *
- * Deliberately NOT wired up in this pass: TTS, ASR/STT, model download,
+ * Deliberately NOT wired up in this pass: ASR/STT, model download,
  * voice-confirm loops, permissions, telephony/SMS repositories. Gesture
- * OUTCOMES are shown as on-screen status text only, phrased as the
- * actual prompts/confirmations a later TTS pass will read aloud.
+ * outcomes are shown as on-screen status text AND now spoken aloud via
+ * [SwahiliTts] (this pass's addition — same text, same
+ * [SwahiliTts.speakAndAwait] used by the earlier TTS-hang-fix work, no
+ * new TTS code written). [SwahiliTts] already defaults to
+ * `TextToSpeech.QUEUE_FLUSH`, so a rapid second gesture interrupts
+ * whatever utterance was still playing rather than queuing up a backlog
+ * of stale speech.
  *
  * Uses Compose's official [HorizontalPager] + built-in
  * [detectTapGestures] (natively disambiguates single/double/long-press,
@@ -178,6 +189,24 @@ private fun GestureNavRoot() {
     // whichever top page was active when the user double-tapped in.
     var depth by remember { mutableIntStateOf(0) }
     var activeTopPageIndex by remember { mutableIntStateOf(0) }
+
+    // TTS: one SwahiliTts instance for the lifetime of this composable,
+    // initialized once and torn down on dispose. Every gesture outcome
+    // that updates [statusMessage] is also spoken aloud via the
+    // LaunchedEffect below — see class doc for why this reuses the
+    // existing (already hang-fixed) SwahiliTts rather than new code.
+    val context = LocalContext.current
+    val tts = remember { SwahiliTts(context) }
+    val coroutineScope = rememberCoroutineScope()
+
+    DisposableEffect(Unit) {
+        coroutineScope.launch { tts.init() }
+        onDispose { tts.shutdown() }
+    }
+
+    LaunchedEffect(statusMessage) {
+        tts.speakAndAwait(statusMessage)
+    }
 
     Column(modifier = Modifier.fillMaxSize()) {
         if (depth == 0) {
