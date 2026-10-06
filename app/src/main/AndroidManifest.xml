@@ -17,6 +17,18 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- Required on Android 11+ (API 30+) package-visibility filtering:
+         without this, TextToSpeech's internal PackageManager query for an
+         available TTS engine silently fails to resolve any service, so
+         TextToSpeech never speaks even though init()'s onInit callback
+         may still report SUCCESS. See
+         https://developer.android.com/reference/android/speech/tts/TextToSpeech -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+    </queries>
+
     <application
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"

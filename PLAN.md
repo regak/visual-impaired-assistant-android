@@ -344,6 +344,22 @@ one feature at a time, each independently verified, once this is solid.
     whether `QUEUE_FLUSH` interrupts cleanly rather than clipping mid-word
     in a confusing way — has NOT been confirmed by anyone yet. This
     is the first thing to check before building anything else on top.
+26. [x] **Fixed: "no sound is coming out" (user-reported, real bug)** —
+    root cause: `AndroidManifest.xml` had no `<queries>` declaration for
+    `android.intent.action.TTS_SERVICE`. On Android 11+ (API 30+)
+    package-visibility filtering, this app targets API 34, so
+    `TextToSpeech`'s internal `PackageManager` query for an available TTS
+    engine silently failed to resolve ANY service — meaning
+    `TextToSpeech`'s `onInit` callback could still report `SUCCESS` (it's
+    not necessarily tied to finding an engine via this specific query
+    path) while `speak()` had nothing to actually bind to, or the engine
+    selection silently degraded. Added the required `<queries>` block;
+    confirmed present in the merged manifest
+    (`app/build/intermediates/merged_manifest*/debug/.../AndroidManifest.xml`)
+    after rebuild. This is a DIFFERENT bug from the earlier init-race
+    ("ready" vs "constructed") fix — that one was about timing, this one
+    is about the engine never being visible/resolvable to this app at
+    all regardless of timing.
 
 ## Phase 5 — Hardening & on-device testing checklist
 
