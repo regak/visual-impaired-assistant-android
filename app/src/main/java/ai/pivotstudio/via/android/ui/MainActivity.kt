@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -51,16 +52,18 @@ import kotlinx.coroutines.launch
  * view-hierarchy design (ch.3.2.4.3, figure 7: "Each rectangle... can be
  * seen as a view object" nested under the parent view).
  *
- * Getting back out of a sub-level uses **long-press -> directly return
- * to depth 0** — explicit user choice (simplified from an earlier pass
- * that popped a sub-menu dialog first), matching the thesis's "back
- * view" concept (p.43) but without an intermediate menu step. The
- * instructions text says "...kurudi mwanzo" ("...return to start") at
- * depth 1 — revised per explicit user wording request. Long-press is
- * NOT mentioned in depth-0 instructions text (there IS no "back"
- * destination from the main menu, so saying so would be misleading) —
- * long-press still fires at depth 0 and still speaks [Page.subMenuSw],
- * this only changes what the ARRIVAL/single-tap text says.
+ * Getting back out of a sub-level uses **swipe down -> directly return
+ * to depth 0** — explicit user choice (changed from long-press, which
+ * the user found overlapped awkwardly with how long-press is used
+ * elsewhere: "Can you replace the long holding with swiping down to go
+ * back to the main menu?"). The instructions text says "...Sugua kwenda
+ * chini kurudi menu kuu." ("...Swipe down to return to the main menu")
+ * at depth 1 — exact user-specified wording, replacing the earlier
+ * long-press-worded "...Gusa na ushikilie kurudi mwanzo." Long-press at
+ * depth 1 no longer does anything (removed entirely, not reassigned to
+ * another action this pass). Long-press at depth 0 (main menu) is
+ * UNCHANGED — still announces [Page.subMenuSw], unaffected by this
+ * change (it was never part of the back-navigation flow being replaced).
  *
  * Gesture outcomes are announced TWICE now: once automatically the
  * moment a swipe settles on a new page/sub-page (no tap required —
@@ -87,10 +90,12 @@ import kotlinx.coroutines.launch
  *   is still just a status-text placeholder (no real call/SMS logic
  *   wired up yet — out of scope this pass).
  * - Long press: at depth 0, announces the (still-placeholder) sub-menu
- *   description — RETAINED per explicit user instruction ("No don't
- *   remove the long press. Retain it please"), even though depth-0's
- *   own arrival/instructions text no longer mentions it. At depth 1,
- *   goes DIRECTLY back to depth 0 — the ONLY way back this pass.
+ *   description — unchanged. At depth 1, no longer does anything (see
+ *   above — replaced by swipe-down).
+ * - Swipe down (depth 1 only, NEW this pass): goes DIRECTLY back to
+ *   depth 0 — the ONLY way back. Guarded by [SWIPE_DOWN_THRESHOLD_PX]
+ *   so a small vertical wobble during an otherwise-horizontal swipe
+ *   isn't misread as "go back".
  *
  * Deliberately NOT wired up in this pass: ASR/STT, model download,
  * voice-confirm loops, permissions, telephony/SMS repositories. Gesture
@@ -150,13 +155,13 @@ private enum class Page(
             SubPage(
                 titleSw = "Piga kwa sauti",
                 subtitleSw = "Piga simu kwa amri ya sauti",
-                instructionsSw = "Uko kwenye Piga kwa sauti. Gusa mara mbili kuchagua. Gusa na ushikilie kurudi mwanzo.",
+                instructionsSw = "Uko kwenye Piga kwa sauti. Gusa mara mbili kuchagua. Sugua kwenda chini kurudi menu kuu.",
                 primaryActionSw = "Umechagua Piga kwa sauti — kupiga simu kwa sauti.",
             ),
             SubPage(
                 titleSw = "Anwani",
                 subtitleSw = "Vitabu vya anwani",
-                instructionsSw = "Uko kwenye Anwani. Gusa mara mbili kuchagua. Gusa na ushikilie kurudi mwanzo.",
+                instructionsSw = "Uko kwenye Anwani. Gusa mara mbili kuchagua. Sugua kwenda chini kurudi menu kuu.",
                 primaryActionSw = "Umechagua Anwani — kufungua kitabu cha anwani.",
             ),
         ),
@@ -171,13 +176,13 @@ private enum class Page(
             SubPage(
                 titleSw = "Andika ujumbe",
                 subtitleSw = "Andika ujumbe mpya kwa sauti",
-                instructionsSw = "Uko kwenye Andika ujumbe. Gusa mara mbili kuchagua. Gusa na ushikilie kurudi mwanzo.",
+                instructionsSw = "Uko kwenye Andika ujumbe. Gusa mara mbili kuchagua. Sugua kwenda chini kurudi menu kuu.",
                 primaryActionSw = "Umechagua Andika ujumbe — kutuma ujumbe kwa sauti.",
             ),
             SubPage(
                 titleSw = "Soma ujumbe",
                 subtitleSw = "Soma ujumbe wa hivi karibuni",
-                instructionsSw = "Uko kwenye Soma ujumbe. Gusa mara mbili kuchagua. Gusa na ushikilie kurudi mwanzo.",
+                instructionsSw = "Uko kwenye Soma ujumbe. Gusa mara mbili kuchagua. Sugua kwenda chini kurudi menu kuu.",
                 primaryActionSw = "Umechagua Soma ujumbe — kusoma ujumbe wa hivi karibuni.",
             ),
         ),
@@ -416,7 +421,38 @@ private fun SubPageContent(subPage: SubPage, onStatusChange: (String) -> Unit, o
                 detectTapGestures(
                     onTap = { onStatusChange(subPage.instructionsSw) },
                     onDoubleTap = { onStatusChange(subPage.primaryActionSw) },
-                    onLongPress = { onGoBack() },
+                )
+            }
+            // Swipe-down replaces long-press as the way back to the main
+            // menu — explicit user request ("Can you replace the long
+            // holding with swiping down to go back to the main menu?").
+            // Layered as a SEPARATE pointerInput block (not merged into
+            // the detectTapGestures above) because detectVerticalDragGestures
+            // and detectTapGestures are different gesture-detection APIs
+            // that can't share one block. Runs independently of the
+            // enclosing HorizontalPager's own horizontal drag handling —
+            // Compose's pointer input distinguishes a predominantly
+            // VERTICAL drag from the pager's HORIZONTAL one, so this does
+            // not interfere with swiping left/right between sub-items.
+            // Only fires onGoBack once total downward drag distance
+            // exceeds [SWIPE_DOWN_THRESHOLD_PX] — guards against a small
+            // accidental vertical wobble during an otherwise-horizontal
+            // swipe being misread as "go back".
+            .pointerInput(subPage) {
+                var accumulatedDragY = 0f
+                detectVerticalDragGestures(
+                    onDragStart = { accumulatedDragY = 0f },
+                    onVerticalDrag = { change, dragAmount ->
+                        accumulatedDragY += dragAmount
+                        change.consume()
+                    },
+                    onDragEnd = {
+                        if (accumulatedDragY > SWIPE_DOWN_THRESHOLD_PX) {
+                            onGoBack()
+                        }
+                        accumulatedDragY = 0f
+                    },
+                    onDragCancel = { accumulatedDragY = 0f },
                 )
             },
         contentAlignment = Alignment.Center,
@@ -427,6 +463,15 @@ private fun SubPageContent(subPage: SubPage, onStatusChange: (String) -> Unit, o
         }
     }
 }
+
+/**
+ * Minimum total downward drag distance (device pixels) to count as a
+ * deliberate "swipe down to go back" gesture rather than an accidental
+ * touch-slip. Roughly 2cm on a typical ~400dpi phone screen (~160dp).
+ * Easy to retune after real-device testing if it feels too
+ * sensitive/stiff.
+ */
+private const val SWIPE_DOWN_THRESHOLD_PX = 300f
 
 /** Sighted-tester aid only (dots showing current page) — not relied on for non-sighted navigation. */
 @Composable

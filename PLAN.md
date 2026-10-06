@@ -510,8 +510,54 @@ one feature at a time, each independently verified, once this is solid.
       instead of blocking its full estimated duration after being cut
       off.
     - `gradle compileDebugKotlin`/`assembleDebug` both exit 0, no
-      warnings. Not yet re-tested by the user on a real device for
-      either fix.
+      warnings. User confirmed fix 1 worked, reported fix 2 had a new
+      perceptible side-effect: fast swipes' voice now "lags behind"
+      (see item 31 below for root cause/explanation — ultimately not
+      fixed directly, user moved on to a different request instead).
+31. [x] **Swipe-down replaces long-press for sub-level back-navigation**
+    (explicit user request, after setting aside the swipe-lag
+    discussion: "Can you replace the long holding with swiping down to
+    go back to the main menu?"):
+    - Scope confirmed with user: ONLY depth-1's long-press-to-go-back
+      gesture is replaced. Depth-0's long-press (announces
+      `Page.subMenuSw`) is completely untouched.
+    - Removed `onLongPress` from `SubPageContent`'s `detectTapGestures`
+      block entirely (long-press at depth 1 now does nothing).
+    - Added a SEPARATE `pointerInput` block using
+      `detectVerticalDragGestures` (can't share one block with
+      `detectTapGestures` — different gesture-detection APIs), tracking
+      accumulated downward drag distance across `onVerticalDrag`
+      callbacks and firing `onGoBack()` from `onDragEnd` once the total
+      exceeds `SWIPE_DOWN_THRESHOLD_PX` (300px, ~2cm on a typical
+      phone) — guards against a small vertical wobble during an
+      otherwise-horizontal swipe being misread as "go back". Runs
+      independently of the enclosing `HorizontalPager`'s own horizontal
+      drag handling; Compose's pointer input distinguishes a
+      predominantly vertical drag from the pager's horizontal one.
+    - User explicitly asked whether the spoken instructions text would
+      also be updated to describe the new gesture (it needed to be —
+      this wasn't initially called out in the plan). Updated across all
+      4 sub-pages (Piga kwa sauti, Anwani, Andika ujumbe, Soma ujumbe)
+      from "...Gusa na ushikilie kurudi mwanzo." to user's exact
+      specified wording: "...Sugua kwenda chini kurudi menu kuu."
+    - `gradle compileDebugKotlin`/`assembleDebug` both exit 0, no
+      warnings. Not yet tested by the user on a real device.
+    - **Separately investigated but NOT fixed**: user reported that
+      after the overlapping-voices fix (item 30), a single swipe's
+      voice now has a perceptible lag/delay that wasn't there before.
+      Root cause explained to user in simple terms: the neural voice
+      must fully "think" (generate the whole waveform) before any sound
+      starts, unlike the old system engine which streamed and started
+      almost instantly; this latency existed before too, but previously
+      wasn't noticeable because announcements only fired on tap (no
+      rapid repeated triggers) — now that swipes auto-announce, rapid
+      swiping can pile up multiple "thinking" steps the CPU processes
+      one at a time, falling behind. Proposed fix (debounce the
+      auto-announce ~200ms after swipe settles, skip announcing pages
+      swiped past quickly) was discussed but the user moved on to the
+      swipe-down request instead — debounce is NOT implemented, this
+      remains an open item for a future pass if the user raises it
+      again.
 
 
 ## Phase 5 — Hardening & on-device testing checklist
