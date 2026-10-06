@@ -274,15 +274,21 @@ private fun GestureNavContent() {
 
     // depth: 0 = top-level Simu/Ujumbe pager, 1 = a sub-pager nested under
     // whichever top page was active when the user double-tapped in, 2 =
-    // the "Soma ujumbe" message-reader pager (PLAN.md Phase 4, Option B;
-    // only reachable from the SubPage with opensMessageReader = true).
+    // the "Soma ujumbe" conversation list (grouped by sender — PLAN.md
+    // Phase 4, "Soma ujumbe" Option B grouping pass, explicit user
+    // request: "find a way to group them so it also can be easy to
+    // navigate"), 3 = that conversation's own messages (the original
+    // flat message reader from the first Option-B pass, now nested one
+    // level deeper under its sender instead of being the top of the
+    // whole message list).
     var depth by remember { mutableIntStateOf(0) }
     var activeTopPageIndex by remember { mutableIntStateOf(0) }
 
     val context = LocalContext.current
     val ujumbeRepository = remember { UjumbeRepository(context) }
     val simuRepository = remember { SimuRepository(context) }
-    var messages by remember { mutableStateOf<List<UjumbeRepository.SmsMessage>>(emptyList()) }
+    var conversations by remember { mutableStateOf<List<UjumbeRepository.Conversation>>(emptyList()) }
+    var activeConversationIndex by remember { mutableIntStateOf(0) }
 
     // READ_SMS is declared in the manifest but, per Android 6+ runtime
     // permission rules, was never actually requested anywhere until this
@@ -302,12 +308,12 @@ private fun GestureNavContent() {
         if (pendingMessageReaderEntry) {
             pendingMessageReaderEntry = false
             if (smsGranted) {
-                messages = ujumbeRepository.recentMessages()
+                conversations = ujumbeRepository.groupBySender(ujumbeRepository.recentMessages())
                 depth = 2
-                statusMessage = if (messages.isEmpty()) {
+                statusMessage = if (conversations.isEmpty()) {
                     "Hauna ujumbe wa kusoma." // "You have no messages to read."
                 } else {
-                    messagePreviewSw(messages[0], simuRepository)
+                    conversationPreviewSw(conversations[0], simuRepository)
                 }
             } else {
                 statusMessage = "Haiwezi kusoma ujumbe bila ruhusa ya SMS." // "Cannot read messages without SMS permission."
@@ -412,12 +418,12 @@ private fun GestureNavContent() {
                             val smsAlreadyGranted = context.checkSelfPermission(Manifest.permission.READ_SMS) ==
                                 PackageManager.PERMISSION_GRANTED
                             if (smsAlreadyGranted) {
-                                messages = ujumbeRepository.recentMessages()
+                                conversations = ujumbeRepository.groupBySender(ujumbeRepository.recentMessages())
                                 depth = 2
-                                statusMessage = if (messages.isEmpty()) {
+                                statusMessage = if (conversations.isEmpty()) {
                                     "Hauna ujumbe wa kusoma."
                                 } else {
-                                    messagePreviewSw(messages[0], simuRepository)
+                                    conversationPreviewSw(conversations[0], simuRepository)
                                 }
                             } else {
                                 pendingMessageReaderEntry = true
@@ -440,32 +446,40 @@ private fun GestureNavContent() {
                 currentPage = subPagerState.realIndex(subPages.size),
                 modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
             )
-        } else {
-            // depth == 2: "Soma ujumbe" message-reader pager (PLAN.md
-            // Phase 4, Option B). Reuses the exact same gesture
-            // vocabulary as depth 1's SubPageContent (swipe to browse,
-            // single-tap repeats the sender+time preview, double-tap
-            // speaks the full body, swipe-down goes back) rather than
-            // introducing a fifth gesture meaning.
-            if (messages.isEmpty()) {
+        } else if (depth == 2) {
+            // "Soma ujumbe" conversation list, grouped by sender (PLAN.md
+            // Phase 4, Option B grouping pass). Same gesture vocabulary
+            // as every other level: swipe to browse conversations,
+            // single-tap repeats the preview, double-tap drills into
+            // that sender's own messages (depth 3), swipe-down goes back
+            // to the Ujumbe sub-menu (depth 1) — NOT depth 0, consistent
+            // with every other depth-1<->depth-N relationship in this
+            // app only going back one level at a time.
+            if (conversations.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize().weight(1f), contentAlignment = Alignment.Center) {
                     Text(text = "Hauna ujumbe.", fontSize = 20.sp) // "You have no messages."
                 }
             } else {
-                val messagePagerState = rememberPagerState(initialPage = startVirtualPage(messages.size)) { VIRTUAL_PAGE_COUNT }
-                val currentMessageRealIndex = ((messagePagerState.settledPage % messages.size) + messages.size) % messages.size
-                LaunchedEffect(depth, currentMessageRealIndex, messages) {
-                    statusMessage = messagePreviewSw(messages[currentMessageRealIndex], simuRepository)
+                val conversationPagerState = rememberPagerState(initialPage = startVirtualPage(conversations.size)) { VIRTUAL_PAGE_COUNT }
+                val currentConversationRealIndex =
+                    ((conversationPagerState.settledPage % conversations.size) + conversations.size) % conversations.size
+                LaunchedEffect(depth, currentConversationRealIndex, conversations) {
+                    statusMessage = conversationPreviewSw(conversations[currentConversationRealIndex], simuRepository)
                 }
                 HorizontalPager(
-                    state = messagePagerState,
+                    state = conversationPagerState,
                     modifier = Modifier.fillMaxSize().weight(1f),
                 ) { virtualIndex ->
-                    val message = messages[((virtualIndex % messages.size) + messages.size) % messages.size]
-                    MessageReaderContent(
-                        message = message,
+                    val conversation = conversations[((virtualIndex % conversations.size) + conversations.size) % conversations.size]
+                    ConversationListItemContent(
+                        conversation = conversation,
                         simuRepository = simuRepository,
                         onStatusChange = { statusMessage = it },
+                        onEnter = {
+                            activeConversationIndex = conversationPagerState.realIndex(conversations.size)
+                            depth = 3
+                            statusMessage = messagePreviewSw(conversation.lastMessage, simuRepository)
+                        },
                         onGoBack = {
                             depth = 1
                             statusMessage = pages[activeTopPageIndex].subPages.first { it.opensMessageReader }.instructionsSw
@@ -473,11 +487,46 @@ private fun GestureNavContent() {
                     )
                 }
                 PageIndicator(
-                    pageCount = messages.size,
-                    currentPage = messagePagerState.realIndex(messages.size),
+                    pageCount = conversations.size,
+                    currentPage = conversationPagerState.realIndex(conversations.size),
                     modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                 )
             }
+        } else {
+            // depth == 3: messages within ONE conversation/sender (PLAN.md
+            // Phase 4, Option B). Reuses the exact same gesture
+            // vocabulary as depth 2 (swipe to browse, single-tap repeats
+            // the sender+time preview, double-tap speaks the full body,
+            // swipe-down goes back) — back here returns to depth 2 (the
+            // conversation list), not depth 1/0.
+            val activeConversation = conversations[activeConversationIndex]
+            val conversationMessages = activeConversation.messages
+            val messagePagerState = rememberPagerState(initialPage = startVirtualPage(conversationMessages.size)) { VIRTUAL_PAGE_COUNT }
+            val currentMessageRealIndex =
+                ((messagePagerState.settledPage % conversationMessages.size) + conversationMessages.size) % conversationMessages.size
+            LaunchedEffect(depth, activeConversationIndex, currentMessageRealIndex) {
+                statusMessage = messagePreviewSw(conversationMessages[currentMessageRealIndex], simuRepository)
+            }
+            HorizontalPager(
+                state = messagePagerState,
+                modifier = Modifier.fillMaxSize().weight(1f),
+            ) { virtualIndex ->
+                val message = conversationMessages[((virtualIndex % conversationMessages.size) + conversationMessages.size) % conversationMessages.size]
+                MessageReaderContent(
+                    message = message,
+                    simuRepository = simuRepository,
+                    onStatusChange = { statusMessage = it },
+                    onGoBack = {
+                        depth = 2
+                        statusMessage = conversationPreviewSw(activeConversation, simuRepository)
+                    },
+                )
+            }
+            PageIndicator(
+                pageCount = conversationMessages.size,
+                currentPage = messagePagerState.realIndex(conversationMessages.size),
+                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+            )
         }
 
         // Gesture outcome status field: shows what the last recognized
@@ -598,6 +647,72 @@ private fun SubPageContent(
  * sensitive/stiff.
  */
 private const val SWIPE_DOWN_THRESHOLD_PX = 300f
+
+/**
+ * Builds the short spoken preview for a conversation (group of messages
+ * from one sender), per PLAN.md Phase 4 "Soma ujumbe" Option B grouping
+ * pass: "Mazungumzo na [jina/namba], ujumbe [N], mara ya mwisho [muda]
+ * zilizopita." ("Conversation with [name/number], [N] messages, last
+ * [time] ago.")
+ */
+private fun conversationPreviewSw(conversation: UjumbeRepository.Conversation, simuRepository: SimuRepository): String {
+    val sender = simuRepository.contactNameForNumber(conversation.address) ?: conversation.address
+    val count = conversation.messages.size
+    val relativeTime = UjumbeRepository.relativeTimeSw(conversation.lastMessage.timestampMs)
+    return "Mazungumzo na $sender, ujumbe $count, mara ya mwisho $relativeTime."
+}
+
+/**
+ * One sender's row inside the "Soma ujumbe" depth-2 conversation-list
+ * pager (PLAN.md Phase 4, Option B grouping pass). Mirrors
+ * [SubPageContent]'s gesture pattern: swipe handled by the enclosing
+ * HorizontalPager; single-tap repeats the conversation preview;
+ * double-tap drills into THAT sender's own messages (depth 3, calls
+ * [onEnter]); swipe-down goes back to the Ujumbe sub-menu (depth 1).
+ */
+@Composable
+private fun ConversationListItemContent(
+    conversation: UjumbeRepository.Conversation,
+    simuRepository: SimuRepository,
+    onStatusChange: (String) -> Unit,
+    onEnter: () -> Unit,
+    onGoBack: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .pointerInput(conversation) {
+                detectTapGestures(
+                    onTap = { onStatusChange(conversationPreviewSw(conversation, simuRepository)) },
+                    onDoubleTap = { onEnter() },
+                )
+            }
+            .pointerInput(conversation) {
+                var accumulatedDragY = 0f
+                detectVerticalDragGestures(
+                    onDragStart = { accumulatedDragY = 0f },
+                    onVerticalDrag = { change, dragAmount ->
+                        accumulatedDragY += dragAmount
+                        change.consume()
+                    },
+                    onDragEnd = {
+                        if (accumulatedDragY > SWIPE_DOWN_THRESHOLD_PX) {
+                            onGoBack()
+                        }
+                        accumulatedDragY = 0f
+                    },
+                    onDragCancel = { accumulatedDragY = 0f },
+                )
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            val sender = simuRepository.contactNameForNumber(conversation.address) ?: conversation.address
+            Text(text = sender, fontSize = 24.sp)
+            Text(text = "Ujumbe ${conversation.messages.size}", fontSize = 14.sp) // "N messages"
+        }
+    }
+}
 
 /**
  * Builds the short sender+relative-time spoken preview for a message,

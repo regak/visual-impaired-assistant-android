@@ -624,6 +624,45 @@ one feature at a time, each independently verified, once this is solid.
       a message (thesis had these; not requested this pass); auto-
       reading new incoming SMS as they arrive (separate BroadcastReceiver
       feature, still deferred — see Phase 3 checklist).
+33. [x] **"Soma ujumbe" grouped by sender/conversation** (explicit user
+    report + request, after screenshot showing messages only spanning
+    Oct 4-6: "Messages are limited from today 6th until 4th October.
+    What should we do about this?" then, after being shown options,
+    "Can we find a way to group them so it also can be easy to
+    navigate?" → chose Option B):
+    - **Root cause of the Oct 4-6 limit**: `recentMessages(limit: Int =
+      20)`'s default was simply too small for an active phone — not a
+      bug exactly, just an unconsidered default. Raised to 300. Still a
+      fixed ceiling, NOT true unlimited incremental loading (that
+      remains a deferred future item if 300 also proves insufficient).
+    - **New**: `UjumbeRepository.Conversation` data class (address +
+      that sender's messages, newest-first) and
+      `UjumbeRepository.groupBySender(messages)` — groups a flat message
+      list by `address`, sorts conversations by whichever sender's most
+      recent message is newest.
+    - **UI restructure**: inserted a NEW depth-2 level (conversation
+      list) between the old depth-1 (Ujumbe sub-menu) and what is now
+      depth-3 (one sender's messages — the original flat "Soma ujumbe"
+      reader from item 32, unchanged internally, just moved one level
+      deeper). Entering "Soma ujumbe" now lands on the conversation
+      list, not directly on a flat message feed.
+    - Depth-2 gesture vocabulary (new `ConversationListItemContent`,
+      mirrors `SubPageContent`'s pattern exactly): swipe between
+      conversations; single-tap/arrival speaks "Mazungumzo na [jina/
+      namba], ujumbe [N], mara ya mwisho [muda] zilizopita." ("Conversation
+      with [name], [N] messages, last [time] ago."); double-tap enters
+      that sender's messages (depth 3); swipe-down returns to the
+      Ujumbe sub-menu (depth 1) — one level at a time, consistent with
+      every other depth transition in the app.
+    - Depth-3's swipe-down now returns to depth 2 (conversation list),
+      changed from the previous pass where it returned directly to
+      depth 1 (Ujumbe sub-menu) — correct per the new nesting, since
+      depth 3 no longer sits directly under depth 1.
+    - `activeConversationIndex` (new state var) tracks which
+      conversation depth-3 is currently showing, parallel to the
+      existing `activeTopPageIndex` pattern for depth 0→1.
+    - `gradle compileDebugKotlin`/`assembleDebug` both exit 0, no
+      warnings. Not yet tested by the user on a real device.
 
 
 ## Phase 5 — Hardening & on-device testing checklist

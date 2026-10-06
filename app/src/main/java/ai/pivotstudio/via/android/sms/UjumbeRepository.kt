@@ -17,10 +17,25 @@ class UjumbeRepository(private val context: Context) {
     data class SmsMessage(val id: Long, val address: String, val body: String, val timestampMs: Long)
 
     /**
-     * Reads the most recent [limit] messages from the combined inbox+sent
-     * conversation view (`content://sms`), newest first.
+     * One sender's messages grouped together (PLAN.md Phase 4, "Soma
+     * ujumbe" Option B grouping pass) — [messages] is newest-first,
+     * matching [recentMessages]'s own ordering.
      */
-    fun recentMessages(limit: Int = 20): List<SmsMessage> {
+    data class Conversation(val address: String, val messages: List<SmsMessage>) {
+        val lastMessage: SmsMessage get() = messages.first()
+    }
+
+    /**
+     * Reads the most recent [limit] messages from the combined inbox+sent
+     * conversation view (`content://sms`), newest first. Raised from an
+     * initial default of 20 to 300 after a real user-reported bug: with
+     * only 20, "Soma ujumbe" silently only ever showed ~2 days of
+     * history on an active phone, with no indication older messages
+     * existed. 300 is still a fixed ceiling, not true unlimited
+     * incremental loading — see PLAN.md Phase 4 for the deferred
+     * load-more-on-demand follow-up if 300 proves insufficient too.
+     */
+    fun recentMessages(limit: Int = 300): List<SmsMessage> {
         val results = ArrayList<SmsMessage>()
         val resolver = context.contentResolver
         val cursor = resolver.query(
@@ -48,6 +63,21 @@ class UjumbeRepository(private val context: Context) {
         }
         return results
     }
+
+    /**
+     * Groups [messages] (assumed already newest-first, i.e. straight
+     * from [recentMessages]) by sender [SmsMessage.address] into
+     * [Conversation]s, each conversation's own message list preserving
+     * that same newest-first order. Conversations themselves are
+     * ordered by whichever sender has the most recent message first —
+     * explicit user request ("group them so it's easy to navigate" ->
+     * Option B, group by sender/conversation).
+     */
+    fun groupBySender(messages: List<SmsMessage>): List<Conversation> =
+        messages
+            .groupBy { it.address }
+            .map { (address, msgs) -> Conversation(address, msgs) }
+            .sortedByDescending { it.lastMessage.timestampMs }
 
     /**
      * Sends [body] to [number] via [SmsManager]. Must only be called AFTER
