@@ -475,8 +475,43 @@ one feature at a time, each independently verified, once this is solid.
          across all 4 sub-pages (Piga kwa sauti, Anwani, Andika ujumbe,
          Soma ujumbe).
     - `gradle compileDebugKotlin`/`assembleDebug` both exit 0, no
-      warnings. Not yet re-tested by the user on a real device for this
-      specific change.
+      warnings. **User confirmed working, reported two further bugs**:
+      "It has improved" + 2 specific issues (see item 30).
+30. [x] **First-launch engine choice + overlapping-voices fix** (explicit
+    user bug reports after confirming auto-announce-on-swipe worked):
+    - Bug 1: "when the app loads for the first time, it uses the TTS
+      engine [system]. But when I swap it, it uses the self-hosted."
+      Root cause: `MainActivity`'s `LaunchedEffect(statusMessage)` that
+      speaks the first announcement raced `SpeechOutput.init()` — it
+      didn't wait for the neural engine to finish loading, so the
+      very first utterance always grabbed the system-engine fallback
+      by default even when the neural model was already downloaded and
+      about to be ready moments later. Fix: added a `speechReady`
+      boolean state, set true only after `speech.init()` completes;
+      the announce `LaunchedEffect` is now keyed on
+      `(statusMessage, speechReady)` and returns immediately if
+      `!speechReady`, so the first-ever utterance also waits for the
+      correct engine.
+    - Bug 2: "when I swap and then I swap quickly, there are two voices
+      overlapping for the first swap and the second swap." Root cause:
+      `SwahiliNeuralTts.generate()` is a blocking native/JNI call that
+      ignores coroutine cancellation, and the old implementation
+      assigned a new `AudioTrack` to `audioTrack` BEFORE the previous
+      one had necessarily stopped — if two `generate()` calls
+      overlapped in time (easily triggered by 2 fast swipes), both
+      tracks could reach `play()`. Fix: introduced `claimPlaybackSlot()`
+      — a single `synchronized` method that atomically stops+releases
+      whatever track currently owns `audioTrack` and installs the new
+      one as sole owner, called ONLY right before `track.play()` (not
+      earlier, e.g. at the top of `speakAndAwait`, which would still
+      leave the same race window). The wait-for-playback-to-finish loop
+      now polls `audioTrack === track` in small chunks (not one long
+      `Thread.sleep`) so a superseded utterance's wait returns early
+      instead of blocking its full estimated duration after being cut
+      off.
+    - `gradle compileDebugKotlin`/`assembleDebug` both exit 0, no
+      warnings. Not yet re-tested by the user on a real device for
+      either fix.
 
 
 ## Phase 5 — Hardening & on-device testing checklist

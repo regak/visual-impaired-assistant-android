@@ -46,6 +46,7 @@ class SwahiliNeuralTts(context: Context) {
     private val appContext = context.applicationContext
     private var tts: OfflineTts? = null
     private var audioTrack: AudioTrack? = null
+    private val playbackLock = Any()
 
     val isReady: Boolean get() = tts != null
 
@@ -96,6 +97,20 @@ class SwahiliNeuralTts(context: Context) {
      * false (without throwing) on any failure — callers should fall back
      * to [SwahiliTts] when this returns false, never leaving the user
      * with silent output.
+     *
+     * Overlapping-voices bug fix (explicit user report: a fast
+     * double-swipe produced two voices playing simultaneously):
+     * generation (`engine.generate()`) for two utterances CAN run
+     * concurrently (it's a plain blocking call with no shared mutable
+     * state guarded here), so interrupting only at the START of this
+     * function — before generation — does NOT prevent two tracks from
+     * both reaching `play()` if their `generate()` calls overlap in
+     * time. The only point that's actually safe to interrupt at is
+     * immediately before a NEW track takes over [audioTrack] in
+     * [claimPlaybackSlot] — that call atomically stops+releases
+     * whatever was previously assigned, THEN installs the new track, all
+     * inside one `synchronized` block, so there is never a window where
+     * two tracks are both the "current" one.
      */
     suspend fun speakAndAwait(text: String): Boolean {
         if (text.isBlank()) return true
@@ -110,6 +125,27 @@ class SwahiliNeuralTts(context: Context) {
             } catch (t: Throwable) {
                 false
             }
+        }
+    }
+
+    /**
+     * Atomically stops+releases whatever track currently owns
+     * [audioTrack] (if any) and installs [newTrack] as the new owner —
+     * the single serialization point that guarantees at most one
+     * [AudioTrack] is ever playing at a time, regardless of how many
+     * `generate()` calls happened to overlap. See [speakAndAwait] doc.
+     */
+    private fun claimPlaybackSlot(newTrack: AudioTrack) {
+        synchronized(playbackLock) {
+            audioTrack?.let { previous ->
+                try {
+                    previous.stop()
+                } catch (t: Throwable) {
+                    // Already stopped — fine, nothing to interrupt.
+                }
+                previous.release()
+            }
+            audioTrack = newTrack
         }
     }
 
@@ -138,28 +174,59 @@ class SwahiliNeuralTts(context: Context) {
             .setBufferSizeInBytes(bufferSizeBytes)
             .setTransferMode(AudioTrack.MODE_STATIC)
             .build()
-        audioTrack = track
         try {
             track.write(samples, 0, samples.size, AudioTrack.WRITE_BLOCKING)
+            // Claim the playback slot ONLY right before play() — this is
+            // the single moment that matters: whatever track was
+            // previously playing gets stopped here, atomically, and this
+            // track becomes the sole owner. Doing this any earlier (e.g.
+            // at the top of speakAndAwait, before generate()) leaves a
+            // window where two concurrent generate() calls can both
+            // reach this point and both start playing — see class doc.
+            claimPlaybackSlot(track)
             track.play()
-            // MODE_STATIC + a one-shot track: block until estimated playback
-            // duration elapses, since AudioTrack has no built-in "await
-            // playback complete" API. +200ms safety margin for buffering.
+            // MODE_STATIC + a one-shot track has no built-in "await
+            // playback complete" API, so wait out the estimated duration
+            // in small polling chunks (not one long Thread.sleep) so this
+            // returns EARLY the moment a newer utterance's
+            // claimPlaybackSlot() stops this track, instead of always
+            // blocking the full estimated duration. +200ms safety margin.
             val durationMs = (samples.size.toLong() * 1000L / sampleRate) + 200L
-            Thread.sleep(durationMs)
+            var remaining = durationMs
+            val pollMs = 30L
+            while (remaining > 0) {
+                val stillCurrent = synchronized(playbackLock) { audioTrack === track }
+                if (!stillCurrent) break
+                Thread.sleep(minOf(pollMs, remaining))
+                remaining -= pollMs
+            }
         } finally {
-            track.stop()
+            synchronized(playbackLock) {
+                if (audioTrack === track) {
+                    audioTrack = null
+                }
+            }
+            try {
+                track.stop()
+            } catch (t: Throwable) {
+                // Already stopped by a newer utterance's claimPlaybackSlot() — fine.
+            }
             track.release()
-            audioTrack = null
         }
     }
 
     fun shutdown() {
-        audioTrack?.let {
-            it.stop()
-            it.release()
+        synchronized(playbackLock) {
+            audioTrack?.let {
+                try {
+                    it.stop()
+                } catch (t: Throwable) {
+                    // Already stopped — fine.
+                }
+                it.release()
+            }
+            audioTrack = null
         }
-        audioTrack = null
         tts?.release()
         tts = null
     }

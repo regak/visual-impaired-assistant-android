@@ -267,16 +267,28 @@ private fun GestureNavContent() {
     val speech = remember { SpeechOutput(context) }
     val coroutineScope = rememberCoroutineScope()
     var ttsDiagnostic by remember { mutableStateOf("TTS: inazindua...") } // "TTS: initializing..."
+    var speechReady by remember { mutableStateOf(false) }
 
     DisposableEffect(Unit) {
         coroutineScope.launch {
             speech.init()
             ttsDiagnostic = speech.diagnostic
+            speechReady = true
         }
         onDispose { speech.shutdown() }
     }
 
-    LaunchedEffect(statusMessage) {
+    // Gated on speechReady so the FIRST announcement waits for
+    // SpeechOutput.init() to actually finish loading the neural engine
+    // before speaking — explicit user-reported bug fix: previously this
+    // LaunchedEffect raced init() and the app's very first utterance
+    // always grabbed the (not-yet-superseded) system TTS engine by
+    // default, even though the neural model was already downloaded and
+    // would be ready moments later. Re-fires once speechReady flips
+    // true, at which point neuralReady correctly reflects whether the
+    // self-hosted voice loaded successfully.
+    LaunchedEffect(statusMessage, speechReady) {
+        if (!speechReady) return@LaunchedEffect
         speech.speakAndAwait(statusMessage)
         ttsDiagnostic = speech.diagnostic
     }
