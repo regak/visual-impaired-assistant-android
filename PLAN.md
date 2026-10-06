@@ -668,7 +668,33 @@ one feature at a time, each independently verified, once this is solid.
       pattern for depth 0→1.
     - `gradle compileDebugKotlin`/`assembleDebug` both exit 0, no
       warnings. Not yet tested by the user on a real device.
-
+34. [x] **Fixed: repeating the same message via double-tap did nothing
+    the second time** (explicit user bug report: "when you double-click
+    again once the message has been read, it does not work, especially
+    if a user wants to repeat reading the same message again"):
+    - **Root cause**: the single auto-speak `LaunchedEffect` driving all
+      TTS output was keyed only on `statusMessage` (plus `speechReady`).
+      Compose's `LaunchedEffect` only restarts its block when at least
+      one key's VALUE actually changes — so double-tapping the exact
+      same message twice set `statusMessage` to the identical string
+      both times, and the effect silently never re-fired the second
+      time. Same latent bug would have affected single-tap repeat and
+      the depth-2/3 "repeat the current item" gesture too, not just
+      double-tap, since all of them route through the same
+      `statusMessage` variable.
+    - **Fix**: added a monotonic `speechNonce: Int` counter and a single
+      `announce(text: String)` helper that sets `statusMessage = text`
+      AND increments `speechNonce` on every call, even when `text`
+      equals the current value. The auto-speak effect is now keyed on
+      `LaunchedEffect(statusMessage, speechNonce, speechReady)` — the
+      nonce bump guarantees a re-fire regardless of whether the text
+      changed. Replaced every direct `statusMessage = ...` assignment
+      and every `onStatusChange = { statusMessage = it }` callback
+      throughout `GestureNavContent` with `announce(...)` / `announce`
+      so the fix applies uniformly at every depth (0 through 3), not
+      just the message reader where it was reported.
+    - `gradle compileDebugKotlin`/`assembleDebug` both exit 0, no
+      warnings. Not yet tested by the user on a real device.
 
 ## Phase 5 — Hardening & on-device testing checklist
 

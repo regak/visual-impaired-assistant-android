@@ -271,6 +271,18 @@ private fun GestureNavContent() {
     val pages = Page.entries
     val topPagerState = rememberPagerState(initialPage = startVirtualPage(pages.size)) { VIRTUAL_PAGE_COUNT }
     var statusMessage by remember { mutableStateOf(pages[0].instructionsSw) }
+    // Monotonic counter bumped every time [announce] is called, even when
+    // the new text is identical to the current statusMessage. Needed
+    // because the auto-speak LaunchedEffect below is keyed on this value
+    // (not just on statusMessage's text) — explicit user-reported bug:
+    // double-tapping the SAME message a second time to repeat it did
+    // nothing, because Compose's remember-based state doesn't re-fire a
+    // LaunchedEffect when the new value structurally equals the old one.
+    var speechNonce by remember { mutableIntStateOf(0) }
+    val announce: (String) -> Unit = { text ->
+        statusMessage = text
+        speechNonce++
+    }
 
     // depth: 0 = top-level Simu/Ujumbe pager, 1 = a sub-pager nested under
     // whichever top page was active when the user double-tapped in, 2 =
@@ -352,7 +364,7 @@ private fun GestureNavContent() {
     // would be ready moments later. Re-fires once speechReady flips
     // true, at which point neuralReady correctly reflects whether the
     // self-hosted voice loaded successfully.
-    LaunchedEffect(statusMessage, speechReady) {
+    LaunchedEffect(statusMessage, speechNonce, speechReady) {
         if (!speechReady) return@LaunchedEffect
         speech.speakAndAwait(statusMessage)
         ttsDiagnostic = speech.diagnostic
@@ -377,11 +389,11 @@ private fun GestureNavContent() {
                 val page = pages[((virtualIndex % pages.size) + pages.size) % pages.size]
                 TopPageContent(
                     page = page,
-                    onStatusChange = { statusMessage = it },
+                    onStatusChange = announce,
                     onEnter = {
                         activeTopPageIndex = topPagerState.realIndex(pages.size)
                         depth = 1
-                        statusMessage = page.primaryActionSw
+                        announce(page.primaryActionSw)
                     },
                 )
             }
@@ -405,7 +417,7 @@ private fun GestureNavContent() {
                 val subPage = subPages[((virtualIndex % subPages.size) + subPages.size) % subPages.size]
                 SubPageContent(
                     subPage = subPage,
-                    onStatusChange = { statusMessage = it },
+                    onStatusChange = announce,
                     onDoubleTap = {
                         if (subPage.opensMessageReader) {
                             // "Soma ujumbe" (PLAN.md Phase 4, Option B):
@@ -420,11 +432,13 @@ private fun GestureNavContent() {
                             if (smsAlreadyGranted) {
                                 dateGroups = ujumbeRepository.groupByDate(ujumbeRepository.recentMessages())
                                 depth = 2
-                                statusMessage = if (dateGroups.isEmpty()) {
-                                    "Hauna ujumbe wa kusoma."
-                                } else {
-                                    dateGroupPreviewSw(dateGroups[0])
-                                }
+                                announce(
+                                    if (dateGroups.isEmpty()) {
+                                        "Hauna ujumbe wa kusoma."
+                                    } else {
+                                        dateGroupPreviewSw(dateGroups[0])
+                                    },
+                                )
                             } else {
                                 pendingMessageReaderEntry = true
                                 permissionLauncher.launch(
@@ -432,12 +446,12 @@ private fun GestureNavContent() {
                                 )
                             }
                         } else {
-                            statusMessage = subPage.primaryActionSw
+                            announce(subPage.primaryActionSw)
                         }
                     },
                     onGoBack = {
                         depth = 0
-                        statusMessage = activePage.instructionsSw
+                        announce(activePage.instructionsSw)
                     },
                 )
             }
@@ -473,15 +487,15 @@ private fun GestureNavContent() {
                     val dateGroup = dateGroups[((virtualIndex % dateGroups.size) + dateGroups.size) % dateGroups.size]
                     DateGroupListItemContent(
                         dateGroup = dateGroup,
-                        onStatusChange = { statusMessage = it },
+                        onStatusChange = announce,
                         onEnter = {
                             activeDateGroupIndex = dateGroupPagerState.realIndex(dateGroups.size)
                             depth = 3
-                            statusMessage = messagePreviewSw(dateGroup.messages[0], simuRepository)
+                            announce(messagePreviewSw(dateGroup.messages[0], simuRepository))
                         },
                         onGoBack = {
                             depth = 1
-                            statusMessage = pages[activeTopPageIndex].subPages.first { it.opensMessageReader }.instructionsSw
+                            announce(pages[activeTopPageIndex].subPages.first { it.opensMessageReader }.instructionsSw)
                         },
                     )
                 }
@@ -514,10 +528,10 @@ private fun GestureNavContent() {
                 MessageReaderContent(
                     message = message,
                     simuRepository = simuRepository,
-                    onStatusChange = { statusMessage = it },
+                    onStatusChange = announce,
                     onGoBack = {
                         depth = 2
-                        statusMessage = dateGroupPreviewSw(activeDateGroup)
+                        announce(dateGroupPreviewSw(activeDateGroup))
                     },
                 )
             }
