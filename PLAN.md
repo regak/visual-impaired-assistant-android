@@ -386,6 +386,71 @@ one feature at a time, each independently verified, once this is solid.
       single most important thing to check next: have the user report
       back exactly what the diagnostic row says, and whether the phone's
       MEDIA volume (not just ringtone/notification volume) is turned up.
+28. [x] **Self-hosted neural Swahili TTS** (explicit user request, after
+    confirming the system engine on their device — `com.xiaomi.mibrain.speech`
+    — sounded robotic and had no real Swahili voice installed):
+    - User asked which engine was in use / whether cloud TTS exists with
+      Swahili support. Answered: system TTS depends entirely on the
+      phone's installed engine; proposed cloud (Azure/Google, `sw-KE`
+      neural voices) vs self-hosted (Meta MMS-TTS or a sherpa-onnx Piper
+      voice, same offline-first pattern as the ASR model) vs "just try
+      Speech Services by Google first" as a zero-code option.
+    - User tried "Speech Services by Google" (option 3) — engine
+      improved but voice still didn't sound natural enough. User asked
+      to proceed with the self-hosted model.
+    - Found `vits-piper-sw_CD-lanfrica-medium` in sherpa-onnx's own TTS
+      model catalog — a genuine human-recorded Swahili (Congo DRC
+      dialect) Piper/VITS voice, already in sherpa-onnx's native ONNX
+      format. Fetched the real demo sample MP3 directly from
+      k2-fsa.github.io's own demo page and sent it to the user BEFORE
+      committing to integration, per explicit user request ("Test first
+      the short sample so I can hear the voice before we commit"). User
+      confirmed: "It sounds natural."
+    - Verified via `javap` on `sherpa-onnx-1.13.8.aar`'s `classes.jar`
+      (same verification approach as `OmnilingualAsrEngine`) that this
+      AAR already exposes `OfflineTts`, `OfflineTtsVitsModelConfig`,
+      `OfflineTtsModelConfig`, `OfflineTtsConfig`, `GeneratedAudio` — the
+      VITS/Piper TTS API family — no sherpa-onnx version bump needed.
+    - Downloaded the upstream `vits-piper-sw_CD-lanfrica-medium.tar.bz2`
+      (no system `bzip2` binary available — decompressed via Python's
+      `bz2` module instead), extracted `sw_CD-lanfrica-medium.onnx`
+      (~61MB), `tokens.txt`, `espeak-ng-data/` (355 files, ~19MB,
+      required by Piper/VITS for phonemization). Re-hosted all three on
+      THIS repo's existing `models-v1` GitHub Release (same release/tag
+      the ASR model already lives on) — `tokens.txt` renamed to
+      `tts-tokens.txt` on the release to avoid colliding with the ASR
+      model's own `tokens.txt` asset; `espeak-ng-data/` tarred into
+      `espeak-ng-data.tar.gz` (a Release asset must be a single file).
+      All 3 uploads verified by re-downloading and comparing byte sizes.
+    - New files: `tts/SwahiliNeuralTtsModel.kt` (paths/constants, mirrors
+      `OmnilingualAsrModel`'s pattern), `tts/SwahiliNeuralTts.kt` (wraps
+      `OfflineTts`; `generate()` is synchronous/CPU-bound unlike the
+      streaming system `TextToSpeech`, so playback runs via a one-shot
+      `AudioTrack` in `MODE_STATIC`, `USAGE_MEDIA`/`CONTENT_TYPE_SPEECH`
+      audio attributes), `tts/SpeechOutput.kt` (facade: prefers the
+      neural voice once downloaded+loaded, transparently falls back to
+      the existing `SwahiliTts` system-engine wrapper on any failure —
+      never leaves the user silent).
+    - `ModelDownloader` extended to also fetch the 3 new TTS assets
+      alongside the existing ASR/VAD ones, and to extract
+      `espeak-ng-data.tar.gz` on-device via a hand-rolled pure-JVM
+      tar+gzip reader (no `tar`/Apache Commons Compress dependency
+      available/added) — this reader's output was verified byte-for-byte
+      identical to Python's own `tarfile` module's extraction of the
+      exact same real archive before shipping.
+    - `MainActivity`'s `GestureNavRoot` split into an outer composable
+      that shows a download-progress screen (`ModelDownloader.isComplete()`
+      gate, reusing the same downloader/progress-callback pattern as the
+      ASR model) and an inner `GestureNavContent()` with the actual
+      gesture UI — swapped from directly using `SwahiliTts` to using the
+      new `SpeechOutput` facade, so the gesture code itself didn't need
+      to change.
+    - `gradle compileDebugKotlin`/`assembleDebug` both exit 0, no
+      warnings. **Not yet confirmed working on a real device** — next
+      step is the user re-testing and reporting whether the neural voice
+      is heard (diagnostic row will show "TTS: neural (vits-piper sw_CD)
+      — in tumizi" vs a system-engine fallback line) and whether it
+      actually sounds better than the system engine.
 
 
 ## Phase 5 — Hardening & on-device testing checklist

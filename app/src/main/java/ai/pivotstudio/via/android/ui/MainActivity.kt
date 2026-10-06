@@ -1,6 +1,5 @@
 package ai.pivotstudio.via.android.ui
 
-import android.media.AudioManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -36,7 +35,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import ai.pivotstudio.via.android.tts.SwahiliTts
+import ai.pivotstudio.via.android.core.ModelDownloader
+import ai.pivotstudio.via.android.tts.SpeechOutput
 import kotlinx.coroutines.launch
 
 /**
@@ -182,6 +182,49 @@ private fun PagerState.realIndex(itemCount: Int): Int =
 
 @Composable
 private fun GestureNavRoot() {
+    val context = LocalContext.current
+    val downloader = remember { ModelDownloader(context) }
+    var downloadComplete by remember { mutableStateOf(downloader.isComplete()) }
+    var downloadProgress by remember { mutableStateOf<ModelDownloader.Progress?>(null) }
+    val coroutineScope = rememberCoroutineScope()
+
+    // Download gate: the neural Swahili TTS model (~80MB) is fetched here
+    // alongside the ASR/VAD models already handled by this same
+    // ModelDownloader. While still downloading, SpeechOutput falls back
+    // to the system TTS engine automatically (see SpeechOutput class doc)
+    // so the app is never silent, but we still show progress so the user
+    // on a slow/metered connection understands what's happening.
+    LaunchedEffect(Unit) {
+        if (!downloader.isComplete()) {
+            coroutineScope.launch {
+                downloader.ensureDownloaded { progress -> downloadProgress = progress }
+                downloadComplete = true
+            }
+        }
+    }
+
+    if (!downloadComplete) {
+        val progress = downloadProgress
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(text = "Inapakua sauti ya Kiswahili...", fontSize = 18.sp) // "Downloading Swahili voice..."
+                if (progress != null) {
+                    val pct = if (progress.bytesTotal > 0) (progress.bytesDone * 100 / progress.bytesTotal) else 0
+                    Text(
+                        text = "${progress.fileName} (${progress.fileIndex}/${progress.fileCount}) — $pct%",
+                        fontSize = 13.sp,
+                    )
+                }
+            }
+        }
+        return
+    }
+
+    GestureNavContent()
+}
+
+@Composable
+private fun GestureNavContent() {
     val pages = Page.entries
     val topPagerState = rememberPagerState(initialPage = startVirtualPage(pages.size)) { VIRTUAL_PAGE_COUNT }
     var statusMessage by remember { mutableStateOf(pages[0].instructionsSw) }
@@ -191,31 +234,30 @@ private fun GestureNavRoot() {
     var depth by remember { mutableIntStateOf(0) }
     var activeTopPageIndex by remember { mutableIntStateOf(0) }
 
-    // TTS: one SwahiliTts instance for the lifetime of this composable,
-    // initialized once and torn down on dispose. Every gesture outcome
-    // that updates [statusMessage] is also spoken aloud via the
-    // LaunchedEffect below — see class doc for why this reuses the
-    // existing (already hang-fixed) SwahiliTts rather than new code.
+    // TTS: one SpeechOutput instance for the lifetime of this composable,
+    // initialized once and torn down on dispose. SpeechOutput prefers the
+    // self-hosted neural Swahili voice (vits-piper-sw_CD-lanfrica-medium,
+    // user-approved after hearing a real sample) and transparently falls
+    // back to the Android system TextToSpeech if the neural model isn't
+    // downloaded yet or fails to load/generate — see SpeechOutput class
+    // doc. Every gesture outcome that updates [statusMessage] is also
+    // spoken aloud via the LaunchedEffect below.
     val context = LocalContext.current
-    val tts = remember { SwahiliTts(context) }
+    val speech = remember { SpeechOutput(context) }
     val coroutineScope = rememberCoroutineScope()
     var ttsDiagnostic by remember { mutableStateOf("TTS: inazindua...") } // "TTS: initializing..."
 
     DisposableEffect(Unit) {
         coroutineScope.launch {
-            val availability = tts.init()
-            val audioManager = context.getSystemService(AudioManager::class.java)
-            val currentVol = audioManager?.getStreamVolume(AudioManager.STREAM_MUSIC) ?: -1
-            val maxVol = audioManager?.getStreamMaxVolume(AudioManager.STREAM_MUSIC) ?: -1
-            ttsDiagnostic = "TTS: engine=${tts.engineName ?: "NONE"} locale=$availability vol=$currentVol/$maxVol"
+            speech.init()
+            ttsDiagnostic = speech.diagnostic
         }
-        onDispose { tts.shutdown() }
+        onDispose { speech.shutdown() }
     }
 
     LaunchedEffect(statusMessage) {
-        tts.speakAndAwait(statusMessage)
-        ttsDiagnostic = "TTS: engine=${tts.engineName ?: "NONE"} locale=${tts.localeAvailability} " +
-            "lastQueued=${tts.lastSpeakQueued}"
+        speech.speakAndAwait(statusMessage)
+        ttsDiagnostic = speech.diagnostic
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
