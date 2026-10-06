@@ -289,15 +289,48 @@ one feature at a time, each independently verified, once this is solid.
       messages, etc. — current implementation only has it at the
       top-level Simu/Ujumbe pager, since there are no sub-views wired up
       yet).
-21. [ ] **Still not verified on a real device** (no ADB/emulator in this
+21. [x] **Second navigation level added**: double-tapping a top-level
+    menu (Simu or Ujumbe) now drills into that menu's own swipeable
+    sub-pager — per thesis ch.3.2.4.3 figure 7's recursive view
+    hierarchy ("Each rectangle... can be seen as a view object" nested
+    under the parent). Simu's sub-level: "Piga kwa sauti" <-> "Anwani".
+    Ujumbe's sub-level: "Andika ujumbe" <-> "Soma ujumbe". Same
+    four-gesture vocabulary applies recursively at depth 1 (swipe with
+    wraparound, single-tap=instructions, double-tap=primary action
+    placeholder, long-press=sub-menu).
+22. [x] **Getting back out of a sub-level**: explicit user choice —
+    long-press opens a sub-menu dialog with a **"Rudi nyuma" (Back)**
+    option, matching the thesis's literal "back view" object (p.43:
+    "tapping the back view (8) will go back to the previous view"),
+    rather than an invented swipe-down gesture. This is currently the
+    ONLY way back to depth 0 — there is no swipe-down-to-home shortcut
+    in this implementation, by explicit user decision.
+23. [ ] NOT done this pass, by explicit scope: re-wiring TTS, ASR/STT,
+    model download, voice-confirm loop, Simu/Ujumbe real screens, and
+    permissions back onto this pager. Next steps, one at a time, each
+    independently verified before moving to the next:
+    - Re-attach `SimuScreen`/`UjumbeScreen` as the pager's page content
+      (currently just placeholder text + gesture status field) — still
+      without TTS/ASR wired in, so the real UI structure gets
+      pager-nav-tested in isolation first.
+    - Re-attach `ModelDownloader`'s download-gate screen in front of the
+      pager.
+    - Re-attach `SwahiliTts` (fixing its init-race bug from this pass's
+      history) so the status-field text above is also spoken aloud, not
+      just displayed — no ASR yet.
+    - Re-attach ASR/VoiceInputController/voice-confirm loop last, since
+      it's the most complex and highest-risk piece.
+    - The depth-1 sub-menu's non-back options (e.g. "Anwani mpya",
+      "Soma ujumbe wa hivi karibuni") currently just set status text —
+      wiring them to real `SimuRepository`/`UjumbeRepository` actions is
+      part of the re-attachment work above, not done yet.
+24. [ ] **Still not verified on a real device** (no ADB/emulator in this
     build environment, the same standing limitation noted in every
     phase): `gradle compileDebugKotlin` and `gradle assembleDebug` both
-    exit 0 and produce a real APK, but whether swipe/tap/double-tap/
-    long-press all work reliably together on an actual phone — and
-    whether the double-tap-vs-two-single-taps and long-press-vs-swipe
-    disambiguation feels right — has NOT been confirmed by anyone yet.
-    This is the first thing to check before building anything else on
-    top.
+    exit 0 and produce a real APK, but whether the two-level nav
+    (double-tap to enter, long-press-dialog "Rudi nyuma" to exit) feels
+    right on an actual phone has NOT been confirmed by anyone yet. This
+    is the first thing to check before building anything else on top.
 
 ## Phase 5 — Hardening & on-device testing checklist
 
