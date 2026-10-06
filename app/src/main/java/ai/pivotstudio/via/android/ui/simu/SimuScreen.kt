@@ -63,7 +63,7 @@ fun SimuScreen(
             modifier = Modifier.fillMaxWidth(),
             onClick = {
                 scope.launch {
-                    status = "Inasikiliza..." // "Listening..."
+                    status = "Inasikiliza swali..." // "Listening to prompt..." (TTS prompt plays first, then mic opens)
                     runCallByVoiceFlow(voiceInputController, simuRepository, tts) { newStatus ->
                         status = newStatus
                     }
