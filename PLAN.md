@@ -446,11 +446,37 @@ one feature at a time, each independently verified, once this is solid.
       new `SpeechOutput` facade, so the gesture code itself didn't need
       to change.
     - `gradle compileDebugKotlin`/`assembleDebug` both exit 0, no
-      warnings. **Not yet confirmed working on a real device** — next
-      step is the user re-testing and reporting whether the neural voice
-      is heard (diagnostic row will show "TTS: neural (vits-piper sw_CD)
-      — in tumizi" vs a system-engine fallback line) and whether it
-      actually sounds better than the system engine.
+      warnings. **User confirmed working on their real device**: "it
+      works" — neural voice heard successfully.
+29. [x] **Auto-announce on swipe-settle + wording/scope revision**
+    (explicit user requests, after confirming TTS worked): previously
+    the user had to single-tap after swiping to hear where they landed.
+    - Added a `LaunchedEffect` keyed on each pager's `PagerState.settledPage`
+      (not `currentPage`, which updates continuously mid-drag) that
+      speaks `instructionsSw` automatically the instant a swipe's
+      animation finishes — at BOTH depth 0 (top Simu/Ujumbe pager) and
+      depth 1 (each menu's sub-pager). Single-tap still works too, as a
+      manual repeat.
+    - User explicitly asked to KEEP long-press (earlier plan draft had
+      proposed removing it to simplify to single/double-tap only — user
+      rejected that: "No don't remove the long press. Retain it
+      please"). Long-press behavior is UNCHANGED at both depths.
+    - User asked for the exact announced text — shown in full before
+      implementing, then revised twice:
+      1. Depth 0 (Simu/Ujumbe) instructions text no longer mentions
+         long-press at all ("there is no way you can go back" from the
+         main menu, so saying "press and hold for a sub-menu" in the
+         *arrival* text was misleading) — long-press ITSELF still fires
+         at depth 0 and still speaks `Page.subMenuSw` unchanged; only
+         the arrival/single-tap *instructions* text dropped the mention.
+      2. Depth 1 (sub-pages) instructions text keeps the long-press
+         mention but reworded from "...kurudi nyuma" to "...kurudi
+         mwanzo" ("...return to start", exact user-specified wording)
+         across all 4 sub-pages (Piga kwa sauti, Anwani, Andika ujumbe,
+         Soma ujumbe).
+    - `gradle compileDebugKotlin`/`assembleDebug` both exit 0, no
+      warnings. Not yet re-tested by the user on a real device for this
+      specific change.
 
 
 ## Phase 5 — Hardening & on-device testing checklist

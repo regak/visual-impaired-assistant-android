@@ -54,22 +54,43 @@ import kotlinx.coroutines.launch
  * Getting back out of a sub-level uses **long-press -> directly return
  * to depth 0** — explicit user choice (simplified from an earlier pass
  * that popped a sub-menu dialog first), matching the thesis's "back
- * view" concept (p.43) but without an intermediate menu step.
+ * view" concept (p.43) but without an intermediate menu step. The
+ * instructions text says "...kurudi mwanzo" ("...return to start") at
+ * depth 1 — revised per explicit user wording request. Long-press is
+ * NOT mentioned in depth-0 instructions text (there IS no "back"
+ * destination from the main menu, so saying so would be misleading) —
+ * long-press still fires at depth 0 and still speaks [Page.subMenuSw],
+ * this only changes what the ARRIVAL/single-tap text says.
+ *
+ * Gesture outcomes are announced TWICE now: once automatically the
+ * moment a swipe settles on a new page/sub-page (no tap required —
+ * explicit user request: "when it swaps or moves to another screen, it
+ * should say where it is"), and again on single-tap as a manual repeat.
+ * Both paths speak the exact same [Page.instructionsSw]/[SubPage.instructionsSw]
+ * text — see the `LaunchedEffect(currentRealIndex)` / `LaunchedEffect(...,
+ * currentSubRealIndex)` blocks keyed on `PagerState.settledPage` (NOT
+ * `currentPage`, which updates continuously mid-drag — `settledPage`
+ * only changes once a swipe's animation has fully finished, so a single
+ * swipe speaks its destination exactly once, not once per frame).
  *
  * Full four-gesture vocabulary (both levels):
  * - Swipe left/right: move between sibling views at the current level,
- *   with WRAPAROUND (thesis iteration-3 finding — see [VIRTUAL_PAGE_COUNT]).
+ *   with WRAPAROUND (thesis iteration-3 finding — see [VIRTUAL_PAGE_COUNT]),
+ *   and now auto-announces the destination on settle (see above).
  * - Single tap: announce/repeat instructions for the current view —
  *   deliberately NON-destructive (thesis's final design, post
  *   iteration-2 fix — selection moved OFF single tap after too many
- *   accidental activations).
+ *   accidental activations). Now redundant with the auto-announce-on-swipe
+ *   behavior for the FIRST hearing, but still useful to repeat it again.
  * - Double tap: confirms/activates the current view's primary action.
  *   At depth 0 this means "enter this menu's sub-level". At depth 1 it
  *   is still just a status-text placeholder (no real call/SMS logic
  *   wired up yet — out of scope this pass).
  * - Long press: at depth 0, announces the (still-placeholder) sub-menu
- *   description. At depth 1, goes DIRECTLY back to depth 0 — the ONLY
- *   way back this pass, by explicit user choice.
+ *   description — RETAINED per explicit user instruction ("No don't
+ *   remove the long press. Retain it please"), even though depth-0's
+ *   own arrival/instructions text no longer mentions it. At depth 1,
+ *   goes DIRECTLY back to depth 0 — the ONLY way back this pass.
  *
  * Deliberately NOT wired up in this pass: ASR/STT, model download,
  * voice-confirm loops, permissions, telephony/SMS repositories. Gesture
@@ -120,8 +141,8 @@ private enum class Page(
     SIMU(
         titleSw = "Simu",
         subtitleSw = "Piga simu na anwani", // "Call and contacts"
-        instructionsSw = "Uko kwenye Simu. Gusa mara mbili kuingia. Gusa na ushikilie kwa menyu ndogo.",
-        // "You are on Phone. Double tap to enter. Press and hold for a sub-menu."
+        instructionsSw = "Uko kwenye Simu. Gusa mara mbili kuingia.",
+        // "You are on Phone. Double tap to enter."
         primaryActionSw = "Unaingia Simu...",
         // "Entering Phone..."
         subMenuSw = "Menyu ndogo ya Simu: anwani mpya, hariri anwani, futa anwani, rudi nyuma.",
@@ -129,13 +150,13 @@ private enum class Page(
             SubPage(
                 titleSw = "Piga kwa sauti",
                 subtitleSw = "Piga simu kwa amri ya sauti",
-                instructionsSw = "Uko kwenye Piga kwa sauti. Gusa mara mbili kuchagua. Gusa na ushikilie kurudi nyuma.",
+                instructionsSw = "Uko kwenye Piga kwa sauti. Gusa mara mbili kuchagua. Gusa na ushikilie kurudi mwanzo.",
                 primaryActionSw = "Umechagua Piga kwa sauti — kupiga simu kwa sauti.",
             ),
             SubPage(
                 titleSw = "Anwani",
                 subtitleSw = "Vitabu vya anwani",
-                instructionsSw = "Uko kwenye Anwani. Gusa mara mbili kuchagua. Gusa na ushikilie kurudi nyuma.",
+                instructionsSw = "Uko kwenye Anwani. Gusa mara mbili kuchagua. Gusa na ushikilie kurudi mwanzo.",
                 primaryActionSw = "Umechagua Anwani — kufungua kitabu cha anwani.",
             ),
         ),
@@ -143,20 +164,20 @@ private enum class Page(
     UJUMBE(
         titleSw = "Ujumbe",
         subtitleSw = "Tuma na soma ujumbe", // "Send and read messages"
-        instructionsSw = "Uko kwenye Ujumbe. Gusa mara mbili kuingia. Gusa na ushikilie kwa menyu ndogo.",
+        instructionsSw = "Uko kwenye Ujumbe. Gusa mara mbili kuingia.",
         primaryActionSw = "Unaingia Ujumbe...",
         subMenuSw = "Menyu ndogo ya Ujumbe: soma ujumbe wa hivi karibuni, andika ujumbe mpya, rudi nyuma.",
         subPages = listOf(
             SubPage(
                 titleSw = "Andika ujumbe",
                 subtitleSw = "Andika ujumbe mpya kwa sauti",
-                instructionsSw = "Uko kwenye Andika ujumbe. Gusa mara mbili kuchagua. Gusa na ushikilie kurudi nyuma.",
+                instructionsSw = "Uko kwenye Andika ujumbe. Gusa mara mbili kuchagua. Gusa na ushikilie kurudi mwanzo.",
                 primaryActionSw = "Umechagua Andika ujumbe — kutuma ujumbe kwa sauti.",
             ),
             SubPage(
                 titleSw = "Soma ujumbe",
                 subtitleSw = "Soma ujumbe wa hivi karibuni",
-                instructionsSw = "Uko kwenye Soma ujumbe. Gusa mara mbili kuchagua. Gusa na ushikilie kurudi nyuma.",
+                instructionsSw = "Uko kwenye Soma ujumbe. Gusa mara mbili kuchagua. Gusa na ushikilie kurudi mwanzo.",
                 primaryActionSw = "Umechagua Soma ujumbe — kusoma ujumbe wa hivi karibuni.",
             ),
         ),
@@ -262,6 +283,16 @@ private fun GestureNavContent() {
 
     Column(modifier = Modifier.fillMaxSize()) {
         if (depth == 0) {
+            // Auto-announce on swipe-settle: the moment the pager lands on
+            // a (real, de-duplicated) page — not just on single-tap — per
+            // explicit user request ("when it swaps or moves to another
+            // screen, it should say where it is"). Uses settledPage (not
+            // currentPage, which updates continuously mid-drag) so this
+            // only fires once the swipe animation has fully finished.
+            val currentRealIndex = ((topPagerState.settledPage % pages.size) + pages.size) % pages.size
+            LaunchedEffect(currentRealIndex) {
+                statusMessage = pages[currentRealIndex].instructionsSw
+            }
             HorizontalPager(
                 state = topPagerState,
                 modifier = Modifier.fillMaxSize().weight(1f),
@@ -286,6 +317,10 @@ private fun GestureNavContent() {
             val activePage = pages[activeTopPageIndex]
             val subPages = activePage.subPages
             val subPagerState = rememberPagerState(initialPage = startVirtualPage(subPages.size)) { VIRTUAL_PAGE_COUNT }
+            val currentSubRealIndex = ((subPagerState.settledPage % subPages.size) + subPages.size) % subPages.size
+            LaunchedEffect(depth, activeTopPageIndex, currentSubRealIndex) {
+                statusMessage = subPages[currentSubRealIndex].instructionsSw
+            }
             HorizontalPager(
                 state = subPagerState,
                 modifier = Modifier.fillMaxSize().weight(1f),
