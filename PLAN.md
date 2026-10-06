@@ -360,6 +360,33 @@ one feature at a time, each independently verified, once this is solid.
     ("ready" vs "constructed") fix — that one was about timing, this one
     is about the engine never being visible/resolvable to this app at
     all regardless of timing.
+27. [x] **User reported still no sound after the `<queries>` fix** — the
+    `<queries>` fix was real and necessary but may not be sufficient on
+    its own. Two further changes made since there is NO ADB/logcat
+    access to the user's actual device to diagnose this remotely:
+    - `SwahiliTts` now exposes `engineName` (which TTS engine package
+      actually bound, e.g. `com.google.android.tts`, or null if none),
+      and `lastSpeakQueued` (whether the most recent `speak()` call's
+      synchronous return code was `SUCCESS`).
+    - `SwahiliTts.init()` now explicitly calls
+      `TextToSpeech.setAudioAttributes(USAGE_MEDIA, CONTENT_TYPE_SPEECH)`.
+      Without this, some devices/engines default internally to
+      `USAGE_ASSISTANCE_ACCESSIBILITY`, which is governed by a SEPARATE
+      accessibility volume slider the user has likely never touched
+      (often zero/muted by default) — completely independent of the
+      normal media volume. This is a real, plausible second cause of "no
+      sound" distinct from the engine-visibility bug fixed in item 26.
+    - `MainActivity`'s `GestureNavRoot` now shows a small diagnostic text
+      row at the very bottom of the screen: `engine=... locale=...
+      vol=current/max` after init, and `engine=... locale=...
+      lastQueued=...` after every spoken utterance. This is the ONLY way
+      to see what's actually happening on the user's real device without
+      ADB — ask the user to read this line back after testing.
+    - **Still not confirmed working on a real device.** This is the
+      single most important thing to check next: have the user report
+      back exactly what the diagnostic row says, and whether the phone's
+      MEDIA volume (not just ringtone/notification volume) is turned up.
+
 
 ## Phase 5 — Hardening & on-device testing checklist
 

@@ -1,5 +1,6 @@
 package ai.pivotstudio.via.android.ui
 
+import android.media.AudioManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -198,14 +199,23 @@ private fun GestureNavRoot() {
     val context = LocalContext.current
     val tts = remember { SwahiliTts(context) }
     val coroutineScope = rememberCoroutineScope()
+    var ttsDiagnostic by remember { mutableStateOf("TTS: inazindua...") } // "TTS: initializing..."
 
     DisposableEffect(Unit) {
-        coroutineScope.launch { tts.init() }
+        coroutineScope.launch {
+            val availability = tts.init()
+            val audioManager = context.getSystemService(AudioManager::class.java)
+            val currentVol = audioManager?.getStreamVolume(AudioManager.STREAM_MUSIC) ?: -1
+            val maxVol = audioManager?.getStreamMaxVolume(AudioManager.STREAM_MUSIC) ?: -1
+            ttsDiagnostic = "TTS: engine=${tts.engineName ?: "NONE"} locale=$availability vol=$currentVol/$maxVol"
+        }
         onDispose { tts.shutdown() }
     }
 
     LaunchedEffect(statusMessage) {
         tts.speakAndAwait(statusMessage)
+        ttsDiagnostic = "TTS: engine=${tts.engineName ?: "NONE"} locale=${tts.localeAvailability} " +
+            "lastQueued=${tts.lastSpeakQueued}"
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -266,6 +276,22 @@ private fun GestureNavRoot() {
                 text = statusMessage,
                 modifier = Modifier.fillMaxWidth().padding(16.dp),
                 fontSize = 16.sp,
+            )
+        }
+
+        // TTS diagnostic row (sighted-tester / debugging aid only, per
+        // user-reported "no sound" bug — this app has no ADB/logcat
+        // access to the user's real device, so this is the only way to
+        // tell "no TTS engine resolvable" apart from "engine present but
+        // muted/wrong stream/etc" without tools on the user's end).
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = Color(0xFFDDDDDD),
+        ) {
+            Text(
+                text = ttsDiagnostic,
+                modifier = Modifier.fillMaxWidth().padding(8.dp),
+                fontSize = 11.sp,
             )
         }
     }

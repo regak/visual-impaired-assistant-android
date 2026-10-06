@@ -34,6 +34,22 @@ class SwahiliTts(context: Context) {
         private set
 
     /**
+     * Name of the TTS engine package actually bound (e.g.
+     * "com.google.android.tts"), or null if [init] hasn't completed or no
+     * engine could be bound at all. Exposed purely for on-screen
+     * diagnostics — this app has no ADB/logcat access to the user's
+     * device, so UI-visible diagnostics are the only way to tell "TTS
+     * engine not installed/resolvable" apart from "engine installed but
+     * muted/wrong audio stream/etc" when the user reports no sound.
+     */
+    var engineName: String? = null
+        private set
+
+    /** Result of the most recent [TextToSpeech.speak] call — diagnostic only, see [engineName]. */
+    var lastSpeakQueued: Boolean? = null
+        private set
+
+    /**
      * Resolves once the TTS engine's `onInit` callback has actually fired
      * (NOT when [TextToSpeech]'s constructor returns, which happens
      * synchronously before binding to the system TTS service completes).
@@ -63,6 +79,22 @@ class SwahiliTts(context: Context) {
                 readyDeferred.complete(localeAvailability)
                 return@TextToSpeech
             }
+            engineName = engine.defaultEngine
+            // Explicitly route TTS audio to the MEDIA usage (STREAM_MUSIC
+            // under the hood) — matches the STREAM_MUSIC volume level
+            // read for on-screen diagnostics, and is the volume control
+            // the user actually sees/adjusts with the physical volume
+            // buttons. Without this, some devices/engines default to
+            // USAGE_ASSISTANCE_ACCESSIBILITY, which is governed by a
+            // SEPARATE, often-zero-by-default accessibility volume the
+            // user has no reason to have ever touched — a real class of
+            // "no sound" bug unrelated to the <queries> manifest fix.
+            engine.setAudioAttributes(
+                android.media.AudioAttributes.Builder()
+                    .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
+                    .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH)
+                    .build()
+            )
             localeAvailability = when {
                 engine.isLanguageAvailable(Locale("sw", "TZ")) >= TextToSpeech.LANG_AVAILABLE -> {
                     engine.language = Locale("sw", "TZ")
@@ -129,6 +161,7 @@ class SwahiliTts(context: Context) {
                     }
                 })
                 val queued = engine.speak(text, TextToSpeech.QUEUE_FLUSH, null, utteranceId)
+                lastSpeakQueued = queued == TextToSpeech.SUCCESS
                 if (queued != TextToSpeech.SUCCESS) {
                     Log.e(TAG, "speakAndAwait: engine.speak() returned $queued (not SUCCESS) — resuming immediately, onDone/onError will never fire for this utterance")
                     if (cont.isActive) cont.resume(Unit)
