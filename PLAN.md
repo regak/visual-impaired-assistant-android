@@ -225,26 +225,79 @@ one feature at a time, each independently verified, once this is solid.
     just no longer referenced from `MainActivity` — nothing was deleted,
     this is a UI-layer-only reset so previous work can be re-attached
     feature-by-feature rather than rewritten from zero.
-18. [ ] NOT done this pass, by explicit scope: re-wiring TTS, ASR/STT,
+18. [x] **Four-gesture vocabulary implemented**, reconciled against the
+    actual 2015 thesis PDF (open.uct.ac.za bitstream, chapter 3.2.4,
+    pages 40-57 — fetched and OCR'd this pass since no local copy
+    existed; page-by-page citations below) rather than this project's own
+    earlier invented 6-event scheme:
+    - **Swipe left/right**: navigate between views (here: Simu <-> Ujumbe).
+      Implemented with **wraparound** — thesis iteration-3 finding (p.56):
+      "It was observed that participants always perform a sliding gesture
+      from left towards right unconsciously... making the screen objects
+      endless will help users navigate the views in any direction they
+      want." Implemented via a large virtual page count
+      (`VIRTUAL_PAGE_COUNT = 10_000`) modulo'd onto the real 2-page set,
+      so there is no dead end in either direction.
+    - **Single tap**: announces/repeats instructions for the current
+      view — deliberately NON-destructive. Thesis p.56: "The single
+      tapping gesture was not well accepted by the majority of users...
+      we replaced it with a double tapping gesture for accepting the
+      choice. Therefore the single tapping gesture remained to be used to
+      trigger the instructions." (This was a design change mid-thesis —
+      the EARLY design in ch.3.2.4.3 used single tap to select; the FINAL
+      design in ch.3.4.2 moved selection to double-tap. This app
+      implements the FINAL design.)
+    - **Double tap**: confirms/activates the current view's primary
+      action (thesis p.56, same citation as above — the post-iteration-2
+      change).
+    - **Long press**: opens a contextual sub-menu for the current view.
+      Thesis p.43 (Simu View): "With a long tap gesture triggered for any
+      of the contact view objects, a new menu for adding a new contact,
+      editing, deleting and back view will be activated. The long tap is
+      also used in the voice call view to enable users to speak out voice
+      commands."
+    - Implemented with Compose's official `detectTapGestures(onTap,
+      onDoubleTap, onLongPress)`, which natively disambiguates all three
+      without any custom timer/cancellation logic — avoids the exact bug
+      class that broke `core/GestureDetector.kt` twice.
+19. [x] **Gesture status UI added** (explicit user request this pass —
+    "put a text field with the message or a popup status kind of"): a
+    persistent text field at the bottom of the screen shows the outcome
+    of the last recognized gesture. Phrased as the actual Swahili
+    prompt/confirmation text a later TTS pass will read aloud (e.g.
+    "Umechagua Simu — kupiga simu kwa sauti." on double-tap), not
+    placeholder debug text — so re-attaching TTS later is just wiring
+    this same string through `SwahiliTts.speakAndAwait()`.
+20. [ ] NOT done this pass, by explicit scope: re-wiring TTS, ASR/STT,
     model download, voice-confirm loop, Simu/Ujumbe real screens, and
     permissions back onto this pager. Next steps, one at a time, each
     independently verified before moving to the next:
     - Re-attach `SimuScreen`/`UjumbeScreen` as the pager's page content
-      (currently just placeholder text) — still without TTS/ASR wired in,
-      so the real UI structure gets pager-nav-tested in isolation first.
+      (currently just placeholder text + gesture status field) — still
+      without TTS/ASR wired in, so the real UI structure gets
+      pager-nav-tested in isolation first.
     - Re-attach `ModelDownloader`'s download-gate screen in front of the
       pager.
     - Re-attach `SwahiliTts` (fixing its init-race bug from this pass's
-      history) for simple fixed prompts only, no ASR yet.
+      history) so the status-field text above is also spoken aloud, not
+      just displayed — no ASR yet.
     - Re-attach ASR/VoiceInputController/voice-confirm loop last, since
       it's the most complex and highest-risk piece.
-19. [ ] **Still not verified on a real device** (no ADB/emulator in this
+    - Decide whether to extend the four gestures from top-level nav into
+      the Simu/Ujumbe sub-views too (thesis applies the same
+      single/double/long-press/swipe vocabulary recursively to contacts,
+      messages, etc. — current implementation only has it at the
+      top-level Simu/Ujumbe pager, since there are no sub-views wired up
+      yet).
+21. [ ] **Still not verified on a real device** (no ADB/emulator in this
     build environment, the same standing limitation noted in every
     phase): `gradle compileDebugKotlin` and `gradle assembleDebug` both
-    exit 0 and produce a real APK, but whether `HorizontalPager` swipe
-    actually feels right / repeatedly works on an actual phone has NOT
-    been confirmed by anyone yet. This is the first thing to check before
-    building anything else on top.
+    exit 0 and produce a real APK, but whether swipe/tap/double-tap/
+    long-press all work reliably together on an actual phone — and
+    whether the double-tap-vs-two-single-taps and long-press-vs-swipe
+    disambiguation feels right — has NOT been confirmed by anyone yet.
+    This is the first thing to check before building anything else on
+    top.
 
 ## Phase 5 — Hardening & on-device testing checklist
 
