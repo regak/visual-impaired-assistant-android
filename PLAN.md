@@ -298,13 +298,15 @@ one feature at a time, each independently verified, once this is solid.
     four-gesture vocabulary applies recursively at depth 1 (swipe with
     wraparound, single-tap=instructions, double-tap=primary action
     placeholder, long-press=sub-menu).
-22. [x] **Getting back out of a sub-level**: explicit user choice —
-    long-press opens a sub-menu dialog with a **"Rudi nyuma" (Back)**
-    option, matching the thesis's literal "back view" object (p.43:
-    "tapping the back view (8) will go back to the previous view"),
-    rather than an invented swipe-down gesture. This is currently the
-    ONLY way back to depth 0 — there is no swipe-down-to-home shortcut
-    in this implementation, by explicit user decision.
+22. [x] **Getting back out of a sub-level**: simplified per explicit
+    user follow-up ("fix the long press to direct go back instead of
+    popping a menu") — long-press at depth 1 now goes DIRECTLY back to
+    depth 0, no intermediate dialog. (Earlier in this phase, long-press
+    opened a "Rudi nyuma" dialog option first; user found the extra
+    dialog step unwanted and asked for a direct action instead.) At
+    depth 0, long-press still just announces the (placeholder) sub-menu
+    description text — it hasn't been given a destructive action of its
+    own yet, so there's nothing to "undo" there.
 23. [ ] NOT done this pass, by explicit scope: re-wiring TTS, ASR/STT,
     model download, voice-confirm loop, Simu/Ujumbe real screens, and
     permissions back onto this pager. Next steps, one at a time, each

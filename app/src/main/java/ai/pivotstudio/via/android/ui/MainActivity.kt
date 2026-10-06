@@ -16,11 +16,9 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -46,11 +44,10 @@ import androidx.compose.ui.unit.sp
  * view-hierarchy design (ch.3.2.4.3, figure 7: "Each rectangle... can be
  * seen as a view object" nested under the parent view).
  *
- * Getting back out of a sub-level uses **long-press -> a sub-menu dialog
- * with a "Rudi nyuma" (Back) option** — explicit user choice, matching
- * the thesis's literal "back view" object (p.43: "tapping the back view
- * (8) will go back to the previous view") rather than inventing a new
- * swipe-down gesture not present in the thesis's four-gesture scheme.
+ * Getting back out of a sub-level uses **long-press -> directly return
+ * to depth 0** — explicit user choice (simplified from an earlier pass
+ * that popped a sub-menu dialog first), matching the thesis's "back
+ * view" concept (p.43) but without an intermediate menu step.
  *
  * Full four-gesture vocabulary (both levels):
  * - Swipe left/right: move between sibling views at the current level,
@@ -63,10 +60,9 @@ import androidx.compose.ui.unit.sp
  *   At depth 0 this means "enter this menu's sub-level". At depth 1 it
  *   is still just a status-text placeholder (no real call/SMS logic
  *   wired up yet — out of scope this pass).
- * - Long press: opens a contextual sub-menu dialog for the current view
- *   (thesis p.43: new/edit/delete/back for a contact). At depth 1 this
- *   dialog's "Rudi nyuma" option is the ONLY way back to depth 0 this
- *   pass (explicit user choice over an invented swipe-down shortcut).
+ * - Long press: at depth 0, announces the (still-placeholder) sub-menu
+ *   description. At depth 1, goes DIRECTLY back to depth 0 — the ONLY
+ *   way back this pass, by explicit user choice.
  *
  * Deliberately NOT wired up in this pass: TTS, ASR/STT, model download,
  * voice-confirm loops, permissions, telephony/SMS repositories. Gesture
@@ -98,11 +94,7 @@ private data class SubPage(
     val subtitleSw: String,
     val instructionsSw: String,
     val primaryActionSw: String,
-    /** Long-press sub-menu options for this sub-page. "Rudi nyuma" (Back) is handled specially — see [SubMenuOption]. */
-    val menuOptions: List<SubMenuOption>,
 )
-
-private data class SubMenuOption(val labelSw: String, val isBack: Boolean = false)
 
 /** Page order: Simu first, Ujumbe second — swipe right-to-left moves 0 -> 1. */
 private enum class Page(
@@ -125,24 +117,14 @@ private enum class Page(
             SubPage(
                 titleSw = "Piga kwa sauti",
                 subtitleSw = "Piga simu kwa amri ya sauti",
-                instructionsSw = "Uko kwenye Piga kwa sauti. Gusa mara mbili kuchagua. Gusa na ushikilie kwa menyu ndogo.",
+                instructionsSw = "Uko kwenye Piga kwa sauti. Gusa mara mbili kuchagua. Gusa na ushikilie kurudi nyuma.",
                 primaryActionSw = "Umechagua Piga kwa sauti — kupiga simu kwa sauti.",
-                menuOptions = listOf(
-                    SubMenuOption("Ongea amri ya sauti"), // "Speak a voice command"
-                    SubMenuOption("Rudi nyuma", isBack = true), // "Go back"
-                ),
             ),
             SubPage(
                 titleSw = "Anwani",
                 subtitleSw = "Vitabu vya anwani",
-                instructionsSw = "Uko kwenye Anwani. Gusa mara mbili kuchagua. Gusa na ushikilie kwa menyu ndogo.",
+                instructionsSw = "Uko kwenye Anwani. Gusa mara mbili kuchagua. Gusa na ushikilie kurudi nyuma.",
                 primaryActionSw = "Umechagua Anwani — kufungua kitabu cha anwani.",
-                menuOptions = listOf(
-                    SubMenuOption("Anwani mpya"), // "New contact"
-                    SubMenuOption("Hariri anwani"), // "Edit contact"
-                    SubMenuOption("Futa anwani"), // "Delete contact"
-                    SubMenuOption("Rudi nyuma", isBack = true),
-                ),
             ),
         ),
     ),
@@ -156,22 +138,14 @@ private enum class Page(
             SubPage(
                 titleSw = "Andika ujumbe",
                 subtitleSw = "Andika ujumbe mpya kwa sauti",
-                instructionsSw = "Uko kwenye Andika ujumbe. Gusa mara mbili kuchagua. Gusa na ushikilie kwa menyu ndogo.",
+                instructionsSw = "Uko kwenye Andika ujumbe. Gusa mara mbili kuchagua. Gusa na ushikilie kurudi nyuma.",
                 primaryActionSw = "Umechagua Andika ujumbe — kutuma ujumbe kwa sauti.",
-                menuOptions = listOf(
-                    SubMenuOption("Andika ujumbe mpya"), // "Write a new message"
-                    SubMenuOption("Rudi nyuma", isBack = true),
-                ),
             ),
             SubPage(
                 titleSw = "Soma ujumbe",
                 subtitleSw = "Soma ujumbe wa hivi karibuni",
-                instructionsSw = "Uko kwenye Soma ujumbe. Gusa mara mbili kuchagua. Gusa na ushikilie kwa menyu ndogo.",
+                instructionsSw = "Uko kwenye Soma ujumbe. Gusa mara mbili kuchagua. Gusa na ushikilie kurudi nyuma.",
                 primaryActionSw = "Umechagua Soma ujumbe — kusoma ujumbe wa hivi karibuni.",
-                menuOptions = listOf(
-                    SubMenuOption("Soma ujumbe wa hivi karibuni"), // "Read recent messages"
-                    SubMenuOption("Rudi nyuma", isBack = true),
-                ),
             ),
         ),
     ),
@@ -204,7 +178,6 @@ private fun GestureNavRoot() {
     // whichever top page was active when the user double-tapped in.
     var depth by remember { mutableIntStateOf(0) }
     var activeTopPageIndex by remember { mutableIntStateOf(0) }
-    var menuDialogFor: SubPage? by remember { mutableStateOf(null) }
 
     Column(modifier = Modifier.fillMaxSize()) {
         if (depth == 0) {
@@ -240,7 +213,10 @@ private fun GestureNavRoot() {
                 SubPageContent(
                     subPage = subPage,
                     onStatusChange = { statusMessage = it },
-                    onOpenMenu = { menuDialogFor = subPage },
+                    onGoBack = {
+                        depth = 0
+                        statusMessage = activePage.instructionsSw
+                    },
                 )
             }
             PageIndicator(
@@ -263,35 +239,6 @@ private fun GestureNavRoot() {
                 fontSize = 16.sp,
             )
         }
-    }
-
-    // Long-press sub-menu dialog. The ONLY way back from depth 1 to
-    // depth 0 this pass is its "Rudi nyuma" (Back) option — explicit
-    // user choice over an invented swipe-down gesture, matching the
-    // thesis's literal "back view" object.
-    menuDialogFor?.let { subPage ->
-        AlertDialog(
-            onDismissRequest = { menuDialogFor = null },
-            title = { Text(subPage.titleSw) },
-            text = {
-                Column {
-                    subPage.menuOptions.forEach { option ->
-                        TextButton(onClick = {
-                            menuDialogFor = null
-                            if (option.isBack) {
-                                depth = 0
-                                statusMessage = pages[activeTopPageIndex].instructionsSw
-                            } else {
-                                statusMessage = "Umechagua: ${option.labelSw}" // "You selected: ..."
-                            }
-                        }) {
-                            Text(option.labelSw)
-                        }
-                    }
-                }
-            },
-            confirmButton = {},
-        )
     }
 }
 
@@ -317,7 +264,7 @@ private fun TopPageContent(page: Page, onStatusChange: (String) -> Unit, onEnter
 }
 
 @Composable
-private fun SubPageContent(subPage: SubPage, onStatusChange: (String) -> Unit, onOpenMenu: () -> Unit) {
+private fun SubPageContent(subPage: SubPage, onStatusChange: (String) -> Unit, onGoBack: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -325,7 +272,7 @@ private fun SubPageContent(subPage: SubPage, onStatusChange: (String) -> Unit, o
                 detectTapGestures(
                     onTap = { onStatusChange(subPage.instructionsSw) },
                     onDoubleTap = { onStatusChange(subPage.primaryActionSw) },
-                    onLongPress = { onOpenMenu() },
+                    onLongPress = { onGoBack() },
                 )
             },
         contentAlignment = Alignment.Center,
