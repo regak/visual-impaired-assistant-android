@@ -274,21 +274,21 @@ private fun GestureNavContent() {
 
     // depth: 0 = top-level Simu/Ujumbe pager, 1 = a sub-pager nested under
     // whichever top page was active when the user double-tapped in, 2 =
-    // the "Soma ujumbe" conversation list (grouped by sender — PLAN.md
-    // Phase 4, "Soma ujumbe" Option B grouping pass, explicit user
-    // request: "find a way to group them so it also can be easy to
-    // navigate"), 3 = that conversation's own messages (the original
-    // flat message reader from the first Option-B pass, now nested one
-    // level deeper under its sender instead of being the top of the
-    // whole message list).
+    // the "Soma ujumbe" date-group list (grouped by date — PLAN.md Phase
+    // 4, "Soma ujumbe" Option A grouping pass; revised from an initial
+    // Option B [group-by-sender] attempt per explicit user correction:
+    // "Revise and use option A and not option B"), 3 = that date
+    // group's own messages (the original flat message reader, now
+    // nested one level deeper under its date bucket instead of being
+    // the top of the whole message list).
     var depth by remember { mutableIntStateOf(0) }
     var activeTopPageIndex by remember { mutableIntStateOf(0) }
 
     val context = LocalContext.current
     val ujumbeRepository = remember { UjumbeRepository(context) }
     val simuRepository = remember { SimuRepository(context) }
-    var conversations by remember { mutableStateOf<List<UjumbeRepository.Conversation>>(emptyList()) }
-    var activeConversationIndex by remember { mutableIntStateOf(0) }
+    var dateGroups by remember { mutableStateOf<List<UjumbeRepository.DateGroup>>(emptyList()) }
+    var activeDateGroupIndex by remember { mutableIntStateOf(0) }
 
     // READ_SMS is declared in the manifest but, per Android 6+ runtime
     // permission rules, was never actually requested anywhere until this
@@ -308,12 +308,12 @@ private fun GestureNavContent() {
         if (pendingMessageReaderEntry) {
             pendingMessageReaderEntry = false
             if (smsGranted) {
-                conversations = ujumbeRepository.groupBySender(ujumbeRepository.recentMessages())
+                dateGroups = ujumbeRepository.groupByDate(ujumbeRepository.recentMessages())
                 depth = 2
-                statusMessage = if (conversations.isEmpty()) {
+                statusMessage = if (dateGroups.isEmpty()) {
                     "Hauna ujumbe wa kusoma." // "You have no messages to read."
                 } else {
-                    conversationPreviewSw(conversations[0], simuRepository)
+                    dateGroupPreviewSw(dateGroups[0])
                 }
             } else {
                 statusMessage = "Haiwezi kusoma ujumbe bila ruhusa ya SMS." // "Cannot read messages without SMS permission."
@@ -418,12 +418,12 @@ private fun GestureNavContent() {
                             val smsAlreadyGranted = context.checkSelfPermission(Manifest.permission.READ_SMS) ==
                                 PackageManager.PERMISSION_GRANTED
                             if (smsAlreadyGranted) {
-                                conversations = ujumbeRepository.groupBySender(ujumbeRepository.recentMessages())
+                                dateGroups = ujumbeRepository.groupByDate(ujumbeRepository.recentMessages())
                                 depth = 2
-                                statusMessage = if (conversations.isEmpty()) {
+                                statusMessage = if (dateGroups.isEmpty()) {
                                     "Hauna ujumbe wa kusoma."
                                 } else {
-                                    conversationPreviewSw(conversations[0], simuRepository)
+                                    dateGroupPreviewSw(dateGroups[0])
                                 }
                             } else {
                                 pendingMessageReaderEntry = true
@@ -447,38 +447,37 @@ private fun GestureNavContent() {
                 modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
             )
         } else if (depth == 2) {
-            // "Soma ujumbe" conversation list, grouped by sender (PLAN.md
-            // Phase 4, Option B grouping pass). Same gesture vocabulary
-            // as every other level: swipe to browse conversations,
-            // single-tap repeats the preview, double-tap drills into
-            // that sender's own messages (depth 3), swipe-down goes back
-            // to the Ujumbe sub-menu (depth 1) — NOT depth 0, consistent
-            // with every other depth-1<->depth-N relationship in this
-            // app only going back one level at a time.
-            if (conversations.isEmpty()) {
+            // "Soma ujumbe" date-group list (PLAN.md Phase 4, Option A
+            // grouping pass). Same gesture vocabulary as every other
+            // level: swipe to browse date buckets, single-tap repeats
+            // the preview, double-tap drills into that bucket's own
+            // messages (depth 3), swipe-down goes back to the Ujumbe
+            // sub-menu (depth 1) — NOT depth 0, consistent with every
+            // other depth-1<->depth-N relationship in this app only
+            // going back one level at a time.
+            if (dateGroups.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize().weight(1f), contentAlignment = Alignment.Center) {
                     Text(text = "Hauna ujumbe.", fontSize = 20.sp) // "You have no messages."
                 }
             } else {
-                val conversationPagerState = rememberPagerState(initialPage = startVirtualPage(conversations.size)) { VIRTUAL_PAGE_COUNT }
-                val currentConversationRealIndex =
-                    ((conversationPagerState.settledPage % conversations.size) + conversations.size) % conversations.size
-                LaunchedEffect(depth, currentConversationRealIndex, conversations) {
-                    statusMessage = conversationPreviewSw(conversations[currentConversationRealIndex], simuRepository)
+                val dateGroupPagerState = rememberPagerState(initialPage = startVirtualPage(dateGroups.size)) { VIRTUAL_PAGE_COUNT }
+                val currentDateGroupRealIndex =
+                    ((dateGroupPagerState.settledPage % dateGroups.size) + dateGroups.size) % dateGroups.size
+                LaunchedEffect(depth, currentDateGroupRealIndex, dateGroups) {
+                    statusMessage = dateGroupPreviewSw(dateGroups[currentDateGroupRealIndex])
                 }
                 HorizontalPager(
-                    state = conversationPagerState,
+                    state = dateGroupPagerState,
                     modifier = Modifier.fillMaxSize().weight(1f),
                 ) { virtualIndex ->
-                    val conversation = conversations[((virtualIndex % conversations.size) + conversations.size) % conversations.size]
-                    ConversationListItemContent(
-                        conversation = conversation,
-                        simuRepository = simuRepository,
+                    val dateGroup = dateGroups[((virtualIndex % dateGroups.size) + dateGroups.size) % dateGroups.size]
+                    DateGroupListItemContent(
+                        dateGroup = dateGroup,
                         onStatusChange = { statusMessage = it },
                         onEnter = {
-                            activeConversationIndex = conversationPagerState.realIndex(conversations.size)
+                            activeDateGroupIndex = dateGroupPagerState.realIndex(dateGroups.size)
                             depth = 3
-                            statusMessage = messagePreviewSw(conversation.lastMessage, simuRepository)
+                            statusMessage = messagePreviewSw(dateGroup.messages[0], simuRepository)
                         },
                         onGoBack = {
                             depth = 1
@@ -487,44 +486,44 @@ private fun GestureNavContent() {
                     )
                 }
                 PageIndicator(
-                    pageCount = conversations.size,
-                    currentPage = conversationPagerState.realIndex(conversations.size),
+                    pageCount = dateGroups.size,
+                    currentPage = dateGroupPagerState.realIndex(dateGroups.size),
                     modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                 )
             }
         } else {
-            // depth == 3: messages within ONE conversation/sender (PLAN.md
-            // Phase 4, Option B). Reuses the exact same gesture
-            // vocabulary as depth 2 (swipe to browse, single-tap repeats
-            // the sender+time preview, double-tap speaks the full body,
+            // depth == 3: messages within ONE date group (PLAN.md Phase
+            // 4, Option A). Reuses the exact same gesture vocabulary as
+            // depth 2 (swipe to browse, single-tap repeats the
+            // sender+time preview, double-tap speaks the full body,
             // swipe-down goes back) — back here returns to depth 2 (the
-            // conversation list), not depth 1/0.
-            val activeConversation = conversations[activeConversationIndex]
-            val conversationMessages = activeConversation.messages
-            val messagePagerState = rememberPagerState(initialPage = startVirtualPage(conversationMessages.size)) { VIRTUAL_PAGE_COUNT }
+            // date-group list), not depth 1/0.
+            val activeDateGroup = dateGroups[activeDateGroupIndex]
+            val groupMessages = activeDateGroup.messages
+            val messagePagerState = rememberPagerState(initialPage = startVirtualPage(groupMessages.size)) { VIRTUAL_PAGE_COUNT }
             val currentMessageRealIndex =
-                ((messagePagerState.settledPage % conversationMessages.size) + conversationMessages.size) % conversationMessages.size
-            LaunchedEffect(depth, activeConversationIndex, currentMessageRealIndex) {
-                statusMessage = messagePreviewSw(conversationMessages[currentMessageRealIndex], simuRepository)
+                ((messagePagerState.settledPage % groupMessages.size) + groupMessages.size) % groupMessages.size
+            LaunchedEffect(depth, activeDateGroupIndex, currentMessageRealIndex) {
+                statusMessage = messagePreviewSw(groupMessages[currentMessageRealIndex], simuRepository)
             }
             HorizontalPager(
                 state = messagePagerState,
                 modifier = Modifier.fillMaxSize().weight(1f),
             ) { virtualIndex ->
-                val message = conversationMessages[((virtualIndex % conversationMessages.size) + conversationMessages.size) % conversationMessages.size]
+                val message = groupMessages[((virtualIndex % groupMessages.size) + groupMessages.size) % groupMessages.size]
                 MessageReaderContent(
                     message = message,
                     simuRepository = simuRepository,
                     onStatusChange = { statusMessage = it },
                     onGoBack = {
                         depth = 2
-                        statusMessage = conversationPreviewSw(activeConversation, simuRepository)
+                        statusMessage = dateGroupPreviewSw(activeDateGroup)
                     },
                 )
             }
             PageIndicator(
-                pageCount = conversationMessages.size,
-                currentPage = messagePagerState.realIndex(conversationMessages.size),
+                pageCount = groupMessages.size,
+                currentPage = messagePagerState.realIndex(groupMessages.size),
                 modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
             )
         }
@@ -649,31 +648,24 @@ private fun SubPageContent(
 private const val SWIPE_DOWN_THRESHOLD_PX = 300f
 
 /**
- * Builds the short spoken preview for a conversation (group of messages
- * from one sender), per PLAN.md Phase 4 "Soma ujumbe" Option B grouping
- * pass: "Mazungumzo na [jina/namba], ujumbe [N], mara ya mwisho [muda]
- * zilizopita." ("Conversation with [name/number], [N] messages, last
- * [time] ago.")
+ * Builds the short spoken preview for a date group, per PLAN.md Phase 4
+ * "Soma ujumbe" Option A grouping pass: "[Jina la kundi], ujumbe [N]."
+ * ("[Group name], [N] messages.") e.g. "Leo, ujumbe 3."
  */
-private fun conversationPreviewSw(conversation: UjumbeRepository.Conversation, simuRepository: SimuRepository): String {
-    val sender = simuRepository.contactNameForNumber(conversation.address) ?: conversation.address
-    val count = conversation.messages.size
-    val relativeTime = UjumbeRepository.relativeTimeSw(conversation.lastMessage.timestampMs)
-    return "Mazungumzo na $sender, ujumbe $count, mara ya mwisho $relativeTime."
-}
+private fun dateGroupPreviewSw(dateGroup: UjumbeRepository.DateGroup): String =
+    "${dateGroup.labelSw}, ujumbe ${dateGroup.messages.size}."
 
 /**
- * One sender's row inside the "Soma ujumbe" depth-2 conversation-list
- * pager (PLAN.md Phase 4, Option B grouping pass). Mirrors
+ * One date bucket's row inside the "Soma ujumbe" depth-2 date-group-list
+ * pager (PLAN.md Phase 4, Option A grouping pass). Mirrors
  * [SubPageContent]'s gesture pattern: swipe handled by the enclosing
- * HorizontalPager; single-tap repeats the conversation preview;
- * double-tap drills into THAT sender's own messages (depth 3, calls
- * [onEnter]); swipe-down goes back to the Ujumbe sub-menu (depth 1).
+ * HorizontalPager; single-tap repeats the group preview; double-tap
+ * drills into THAT bucket's own messages (depth 3, calls [onEnter]);
+ * swipe-down goes back to the Ujumbe sub-menu (depth 1).
  */
 @Composable
-private fun ConversationListItemContent(
-    conversation: UjumbeRepository.Conversation,
-    simuRepository: SimuRepository,
+private fun DateGroupListItemContent(
+    dateGroup: UjumbeRepository.DateGroup,
     onStatusChange: (String) -> Unit,
     onEnter: () -> Unit,
     onGoBack: () -> Unit,
@@ -681,13 +673,13 @@ private fun ConversationListItemContent(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .pointerInput(conversation) {
+            .pointerInput(dateGroup) {
                 detectTapGestures(
-                    onTap = { onStatusChange(conversationPreviewSw(conversation, simuRepository)) },
+                    onTap = { onStatusChange(dateGroupPreviewSw(dateGroup)) },
                     onDoubleTap = { onEnter() },
                 )
             }
-            .pointerInput(conversation) {
+            .pointerInput(dateGroup) {
                 var accumulatedDragY = 0f
                 detectVerticalDragGestures(
                     onDragStart = { accumulatedDragY = 0f },
@@ -707,9 +699,8 @@ private fun ConversationListItemContent(
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            val sender = simuRepository.contactNameForNumber(conversation.address) ?: conversation.address
-            Text(text = sender, fontSize = 24.sp)
-            Text(text = "Ujumbe ${conversation.messages.size}", fontSize = 14.sp) // "N messages"
+            Text(text = dateGroup.labelSw, fontSize = 24.sp)
+            Text(text = "Ujumbe ${dateGroup.messages.size}", fontSize = 14.sp) // "N messages"
         }
     }
 }

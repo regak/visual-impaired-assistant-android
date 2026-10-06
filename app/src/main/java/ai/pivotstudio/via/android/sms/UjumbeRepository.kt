@@ -17,13 +17,15 @@ class UjumbeRepository(private val context: Context) {
     data class SmsMessage(val id: Long, val address: String, val body: String, val timestampMs: Long)
 
     /**
-     * One sender's messages grouped together (PLAN.md Phase 4, "Soma
-     * ujumbe" Option B grouping pass) — [messages] is newest-first,
-     * matching [recentMessages]'s own ordering.
+     * One date bucket's messages grouped together (PLAN.md Phase 4,
+     * "Soma ujumbe" Option A grouping — revised from an initial Option
+     * B [group-by-sender] pass per explicit user correction: "Revise
+     * and use option A and not option B"). [messages] is newest-first,
+     * matching [recentMessages]'s own ordering. [labelSw] is a short
+     * Swahili bucket label ("Leo", "Jana", "Wiki iliyopita", "Mwezi
+     * uliopita", "Zamani").
      */
-    data class Conversation(val address: String, val messages: List<SmsMessage>) {
-        val lastMessage: SmsMessage get() = messages.first()
-    }
+    data class DateGroup(val labelSw: String, val messages: List<SmsMessage>)
 
     /**
      * Reads the most recent [limit] messages from the combined inbox+sent
@@ -66,18 +68,50 @@ class UjumbeRepository(private val context: Context) {
 
     /**
      * Groups [messages] (assumed already newest-first, i.e. straight
-     * from [recentMessages]) by sender [SmsMessage.address] into
-     * [Conversation]s, each conversation's own message list preserving
-     * that same newest-first order. Conversations themselves are
-     * ordered by whichever sender has the most recent message first —
-     * explicit user request ("group them so it's easy to navigate" ->
-     * Option B, group by sender/conversation).
+     * from [recentMessages]) into date buckets — "Leo" (today), "Jana"
+     * (yesterday), "Wiki iliyopita" (last 7 days), "Mwezi uliopita"
+     * (last 30 days), "Zamani" (older) — per PLAN.md Phase 4 "Soma
+     * ujumbe" Option A grouping (explicit user choice: "Revise and use
+     * option A and not option B"). Each bucket's own message list
+     * preserves newest-first order; only non-empty buckets are
+     * returned, in chronological-bucket order (Leo first, Zamani
+     * last). [nowMs] is injectable for testing; defaults to real time.
      */
-    fun groupBySender(messages: List<SmsMessage>): List<Conversation> =
-        messages
-            .groupBy { it.address }
-            .map { (address, msgs) -> Conversation(address, msgs) }
-            .sortedByDescending { it.lastMessage.timestampMs }
+    fun groupByDate(messages: List<SmsMessage>, nowMs: Long = System.currentTimeMillis()): List<DateGroup> {
+        val todayCal = Calendar.getInstance().apply { timeInMillis = nowMs }
+        val yesterdayCal = Calendar.getInstance().apply {
+            timeInMillis = nowMs
+            add(Calendar.DAY_OF_YEAR, -1)
+        }
+        val sameDay = { a: Calendar, b: Calendar ->
+            a.get(Calendar.YEAR) == b.get(Calendar.YEAR) && a.get(Calendar.DAY_OF_YEAR) == b.get(Calendar.DAY_OF_YEAR)
+        }
+        val sevenDaysMs = 7L * 24 * 3_600_000L
+        val thirtyDaysMs = 30L * 24 * 3_600_000L
+
+        val buckets = linkedMapOf(
+            "Leo" to ArrayList<SmsMessage>(),
+            "Jana" to ArrayList<SmsMessage>(),
+            "Wiki iliyopita" to ArrayList<SmsMessage>(),
+            "Mwezi uliopita" to ArrayList<SmsMessage>(),
+            "Zamani" to ArrayList<SmsMessage>(),
+        )
+        for (message in messages) {
+            val msgCal = Calendar.getInstance().apply { timeInMillis = message.timestampMs }
+            val ageMs = nowMs - message.timestampMs
+            val label = when {
+                sameDay(msgCal, todayCal) -> "Leo"
+                sameDay(msgCal, yesterdayCal) -> "Jana"
+                ageMs < sevenDaysMs -> "Wiki iliyopita"
+                ageMs < thirtyDaysMs -> "Mwezi uliopita"
+                else -> "Zamani"
+            }
+            buckets[label]!!.add(message)
+        }
+        return buckets
+            .filterValues { it.isNotEmpty() }
+            .map { (label, msgs) -> DateGroup(label, msgs) }
+    }
 
     /**
      * Sends [body] to [number] via [SmsManager]. Must only be called AFTER
