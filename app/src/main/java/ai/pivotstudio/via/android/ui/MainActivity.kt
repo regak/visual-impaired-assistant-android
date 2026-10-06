@@ -1,8 +1,12 @@
 package ai.pivotstudio.via.android.ui
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -37,6 +41,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ai.pivotstudio.via.android.core.ModelDownloader
+import ai.pivotstudio.via.android.sms.UjumbeRepository
+import ai.pivotstudio.via.android.telephony.SimuRepository
 import ai.pivotstudio.via.android.tts.SpeechOutput
 import kotlinx.coroutines.launch
 
@@ -57,8 +63,10 @@ import kotlinx.coroutines.launch
  * the user found overlapped awkwardly with how long-press is used
  * elsewhere: "Can you replace the long holding with swiping down to go
  * back to the main menu?"). The instructions text says "...Sugua kwenda
- * chini kurudi menu kuu." ("...Swipe down to return to the main menu")
- * at depth 1 — exact user-specified wording, replacing the earlier
+ * chini kurudi mwanzo." ("...Swipe down to return to start")
+ * at depth 1 — exact user-specified wording (revised once from an
+ * initial "...kurudi menu kuu." draft to this final "...kurudi mwanzo."
+ * per explicit follow-up correction), replacing the earlier
  * long-press-worded "...Gusa na ushikilie kurudi mwanzo." Long-press at
  * depth 1 no longer does anything (removed entirely, not reassigned to
  * another action this pass). Long-press at depth 0 (main menu) is
@@ -132,6 +140,14 @@ private data class SubPage(
     val subtitleSw: String,
     val instructionsSw: String,
     val primaryActionSw: String,
+    /**
+     * When true, double-tapping this [SubPage] drills into the depth-2
+     * message-reader pager (PLAN.md Phase 4, "Soma ujumbe" Option B)
+     * instead of just speaking [primaryActionSw] as a placeholder. Only
+     * "Soma ujumbe" sets this — every other SubPage is still a
+     * placeholder, unchanged.
+     */
+    val opensMessageReader: Boolean = false,
 )
 
 /** Page order: Simu first, Ujumbe second — swipe right-to-left moves 0 -> 1. */
@@ -155,13 +171,13 @@ private enum class Page(
             SubPage(
                 titleSw = "Piga kwa sauti",
                 subtitleSw = "Piga simu kwa amri ya sauti",
-                instructionsSw = "Uko kwenye Piga kwa sauti. Gusa mara mbili kuchagua. Sugua kwenda chini kurudi menu kuu.",
+                instructionsSw = "Uko kwenye Piga kwa sauti. Gusa mara mbili kuchagua. Sugua kwenda chini kurudi mwanzo.",
                 primaryActionSw = "Umechagua Piga kwa sauti — kupiga simu kwa sauti.",
             ),
             SubPage(
                 titleSw = "Anwani",
                 subtitleSw = "Vitabu vya anwani",
-                instructionsSw = "Uko kwenye Anwani. Gusa mara mbili kuchagua. Sugua kwenda chini kurudi menu kuu.",
+                instructionsSw = "Uko kwenye Anwani. Gusa mara mbili kuchagua. Sugua kwenda chini kurudi mwanzo.",
                 primaryActionSw = "Umechagua Anwani — kufungua kitabu cha anwani.",
             ),
         ),
@@ -176,14 +192,15 @@ private enum class Page(
             SubPage(
                 titleSw = "Andika ujumbe",
                 subtitleSw = "Andika ujumbe mpya kwa sauti",
-                instructionsSw = "Uko kwenye Andika ujumbe. Gusa mara mbili kuchagua. Sugua kwenda chini kurudi menu kuu.",
+                instructionsSw = "Uko kwenye Andika ujumbe. Gusa mara mbili kuchagua. Sugua kwenda chini kurudi mwanzo.",
                 primaryActionSw = "Umechagua Andika ujumbe — kutuma ujumbe kwa sauti.",
             ),
             SubPage(
                 titleSw = "Soma ujumbe",
                 subtitleSw = "Soma ujumbe wa hivi karibuni",
-                instructionsSw = "Uko kwenye Soma ujumbe. Gusa mara mbili kuchagua. Sugua kwenda chini kurudi menu kuu.",
+                instructionsSw = "Uko kwenye Soma ujumbe. Gusa mara mbili kuchagua. Sugua kwenda chini kurudi mwanzo.",
                 primaryActionSw = "Umechagua Soma ujumbe — kusoma ujumbe wa hivi karibuni.",
+                opensMessageReader = true,
             ),
         ),
     ),
@@ -256,9 +273,47 @@ private fun GestureNavContent() {
     var statusMessage by remember { mutableStateOf(pages[0].instructionsSw) }
 
     // depth: 0 = top-level Simu/Ujumbe pager, 1 = a sub-pager nested under
-    // whichever top page was active when the user double-tapped in.
+    // whichever top page was active when the user double-tapped in, 2 =
+    // the "Soma ujumbe" message-reader pager (PLAN.md Phase 4, Option B;
+    // only reachable from the SubPage with opensMessageReader = true).
     var depth by remember { mutableIntStateOf(0) }
     var activeTopPageIndex by remember { mutableIntStateOf(0) }
+
+    val context = LocalContext.current
+    val ujumbeRepository = remember { UjumbeRepository(context) }
+    val simuRepository = remember { SimuRepository(context) }
+    var messages by remember { mutableStateOf<List<UjumbeRepository.SmsMessage>>(emptyList()) }
+
+    // READ_SMS is declared in the manifest but, per Android 6+ runtime
+    // permission rules, was never actually requested anywhere until this
+    // pass — "Soma ujumbe" is the first feature that needs it. Requesting
+    // READ_CONTACTS alongside it too (also declared, also never
+    // requested) so the sender-name lookup can resolve to a saved
+    // contact's name instead of a raw number; if contacts permission is
+    // denied specifically, [SimuRepository.contactNameForNumber] still
+    // works gracefully by falling back to null (caller falls back to
+    // speaking the raw number) — only READ_SMS is actually required to
+    // enter the reader at all.
+    var pendingMessageReaderEntry by remember { mutableStateOf(false) }
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) { results ->
+        val smsGranted = results[Manifest.permission.READ_SMS] == true
+        if (pendingMessageReaderEntry) {
+            pendingMessageReaderEntry = false
+            if (smsGranted) {
+                messages = ujumbeRepository.recentMessages()
+                depth = 2
+                statusMessage = if (messages.isEmpty()) {
+                    "Hauna ujumbe wa kusoma." // "You have no messages to read."
+                } else {
+                    messagePreviewSw(messages[0], simuRepository)
+                }
+            } else {
+                statusMessage = "Haiwezi kusoma ujumbe bila ruhusa ya SMS." // "Cannot read messages without SMS permission."
+            }
+        }
+    }
 
     // TTS: one SpeechOutput instance for the lifetime of this composable,
     // initialized once and torn down on dispose. SpeechOutput prefers the
@@ -268,7 +323,6 @@ private fun GestureNavContent() {
     // downloaded yet or fails to load/generate — see SpeechOutput class
     // doc. Every gesture outcome that updates [statusMessage] is also
     // spoken aloud via the LaunchedEffect below.
-    val context = LocalContext.current
     val speech = remember { SpeechOutput(context) }
     val coroutineScope = rememberCoroutineScope()
     var ttsDiagnostic by remember { mutableStateOf("TTS: inazindua...") } // "TTS: initializing..."
@@ -330,7 +384,7 @@ private fun GestureNavContent() {
                 currentPage = topPagerState.realIndex(pages.size),
                 modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
             )
-        } else {
+        } else if (depth == 1) {
             val activePage = pages[activeTopPageIndex]
             val subPages = activePage.subPages
             val subPagerState = rememberPagerState(initialPage = startVirtualPage(subPages.size)) { VIRTUAL_PAGE_COUNT }
@@ -346,6 +400,35 @@ private fun GestureNavContent() {
                 SubPageContent(
                     subPage = subPage,
                     onStatusChange = { statusMessage = it },
+                    onDoubleTap = {
+                        if (subPage.opensMessageReader) {
+                            // "Soma ujumbe" (PLAN.md Phase 4, Option B):
+                            // READ_SMS was never requested at runtime
+                            // anywhere in this app until this feature —
+                            // request it (+ READ_CONTACTS for sender-name
+                            // resolution) now, entering the reader from
+                            // the launcher callback once the user
+                            // responds to the system dialog.
+                            val smsAlreadyGranted = context.checkSelfPermission(Manifest.permission.READ_SMS) ==
+                                PackageManager.PERMISSION_GRANTED
+                            if (smsAlreadyGranted) {
+                                messages = ujumbeRepository.recentMessages()
+                                depth = 2
+                                statusMessage = if (messages.isEmpty()) {
+                                    "Hauna ujumbe wa kusoma."
+                                } else {
+                                    messagePreviewSw(messages[0], simuRepository)
+                                }
+                            } else {
+                                pendingMessageReaderEntry = true
+                                permissionLauncher.launch(
+                                    arrayOf(Manifest.permission.READ_SMS, Manifest.permission.READ_CONTACTS),
+                                )
+                            }
+                        } else {
+                            statusMessage = subPage.primaryActionSw
+                        }
+                    },
                     onGoBack = {
                         depth = 0
                         statusMessage = activePage.instructionsSw
@@ -357,6 +440,44 @@ private fun GestureNavContent() {
                 currentPage = subPagerState.realIndex(subPages.size),
                 modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
             )
+        } else {
+            // depth == 2: "Soma ujumbe" message-reader pager (PLAN.md
+            // Phase 4, Option B). Reuses the exact same gesture
+            // vocabulary as depth 1's SubPageContent (swipe to browse,
+            // single-tap repeats the sender+time preview, double-tap
+            // speaks the full body, swipe-down goes back) rather than
+            // introducing a fifth gesture meaning.
+            if (messages.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize().weight(1f), contentAlignment = Alignment.Center) {
+                    Text(text = "Hauna ujumbe.", fontSize = 20.sp) // "You have no messages."
+                }
+            } else {
+                val messagePagerState = rememberPagerState(initialPage = startVirtualPage(messages.size)) { VIRTUAL_PAGE_COUNT }
+                val currentMessageRealIndex = ((messagePagerState.settledPage % messages.size) + messages.size) % messages.size
+                LaunchedEffect(depth, currentMessageRealIndex, messages) {
+                    statusMessage = messagePreviewSw(messages[currentMessageRealIndex], simuRepository)
+                }
+                HorizontalPager(
+                    state = messagePagerState,
+                    modifier = Modifier.fillMaxSize().weight(1f),
+                ) { virtualIndex ->
+                    val message = messages[((virtualIndex % messages.size) + messages.size) % messages.size]
+                    MessageReaderContent(
+                        message = message,
+                        simuRepository = simuRepository,
+                        onStatusChange = { statusMessage = it },
+                        onGoBack = {
+                            depth = 1
+                            statusMessage = pages[activeTopPageIndex].subPages.first { it.opensMessageReader }.instructionsSw
+                        },
+                    )
+                }
+                PageIndicator(
+                    pageCount = messages.size,
+                    currentPage = messagePagerState.realIndex(messages.size),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                )
+            }
         }
 
         // Gesture outcome status field: shows what the last recognized
@@ -413,14 +534,19 @@ private fun TopPageContent(page: Page, onStatusChange: (String) -> Unit, onEnter
 }
 
 @Composable
-private fun SubPageContent(subPage: SubPage, onStatusChange: (String) -> Unit, onGoBack: () -> Unit) {
+private fun SubPageContent(
+    subPage: SubPage,
+    onStatusChange: (String) -> Unit,
+    onDoubleTap: () -> Unit,
+    onGoBack: () -> Unit,
+) {
     Box(
         modifier = Modifier
             .fillMaxSize()
             .pointerInput(subPage) {
                 detectTapGestures(
                     onTap = { onStatusChange(subPage.instructionsSw) },
-                    onDoubleTap = { onStatusChange(subPage.primaryActionSw) },
+                    onDoubleTap = { onDoubleTap() },
                 )
             }
             // Swipe-down replaces long-press as the way back to the main
@@ -472,6 +598,74 @@ private fun SubPageContent(subPage: SubPage, onStatusChange: (String) -> Unit, o
  * sensitive/stiff.
  */
 private const val SWIPE_DOWN_THRESHOLD_PX = 300f
+
+/**
+ * Builds the short sender+relative-time spoken preview for a message,
+ * per PLAN.md Phase 4 "Soma ujumbe" Option B: "Ujumbe kutoka [jina/namba],
+ * [muda] zilizopita." ("Message from [name/number], [time] ago.") —
+ * speaks a saved contact's name via [SimuRepository.contactNameForNumber]
+ * when available, falling back to the raw [UjumbeRepository.SmsMessage.address]
+ * otherwise. Does NOT include the message body — that is deliberately
+ * reserved for double-tap (see [MessageReaderContent]), the whole point
+ * of Option B over Option A (sender-first preview, full body is a
+ * separate explicit gesture, not forced on every swipe).
+ */
+private fun messagePreviewSw(message: UjumbeRepository.SmsMessage, simuRepository: SimuRepository): String {
+    val sender = simuRepository.contactNameForNumber(message.address) ?: message.address
+    val relativeTime = UjumbeRepository.relativeTimeSw(message.timestampMs)
+    return "Ujumbe kutoka $sender, $relativeTime."
+}
+
+/**
+ * A single message inside the "Soma ujumbe" depth-2 pager (PLAN.md
+ * Phase 4, Option B). Reuses the exact same gesture vocabulary as
+ * [SubPageContent] (swipe to browse — handled by the enclosing
+ * HorizontalPager, not here; single-tap repeats the sender+time
+ * preview; double-tap speaks the full body; swipe-down goes back) —
+ * deliberately NOT a new/sixth gesture meaning.
+ */
+@Composable
+private fun MessageReaderContent(
+    message: UjumbeRepository.SmsMessage,
+    simuRepository: SimuRepository,
+    onStatusChange: (String) -> Unit,
+    onGoBack: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .pointerInput(message) {
+                detectTapGestures(
+                    onTap = { onStatusChange(messagePreviewSw(message, simuRepository)) },
+                    onDoubleTap = { onStatusChange(message.body) },
+                )
+            }
+            .pointerInput(message) {
+                var accumulatedDragY = 0f
+                detectVerticalDragGestures(
+                    onDragStart = { accumulatedDragY = 0f },
+                    onVerticalDrag = { change, dragAmount ->
+                        accumulatedDragY += dragAmount
+                        change.consume()
+                    },
+                    onDragEnd = {
+                        if (accumulatedDragY > SWIPE_DOWN_THRESHOLD_PX) {
+                            onGoBack()
+                        }
+                        accumulatedDragY = 0f
+                    },
+                    onDragCancel = { accumulatedDragY = 0f },
+                )
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            val sender = simuRepository.contactNameForNumber(message.address) ?: message.address
+            Text(text = sender, fontSize = 22.sp)
+            Text(text = UjumbeRepository.relativeTimeSw(message.timestampMs), fontSize = 13.sp)
+        }
+    }
+}
 
 /** Sighted-tester aid only (dots showing current page) — not relied on for non-sighted navigation. */
 @Composable

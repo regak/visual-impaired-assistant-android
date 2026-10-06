@@ -99,6 +99,36 @@ class SimuRepository(private val context: Context) {
     }
 
     /**
+     * Resolves [number] to a saved contact's display name, if any — used
+     * by the "Soma ujumbe" message reader to say a name instead of a raw
+     * phone number in the spoken sender preview (PLAN.md Phase 4,
+     * "Soma ujumbe" Option B). Uses [ContactsContract.PhoneLookup], the
+     * platform's own normalized/fuzzy phone-number-to-contact matching
+     * (handles formatting differences like +255 vs 0 prefixes), rather
+     * than a manual string-equality scan over [allContactsWithNumbers].
+     * Returns null if [number] has no saved contact (preview falls back
+     * to speaking the raw number).
+     */
+    fun contactNameForNumber(number: String): String? {
+        val resolver = context.contentResolver
+        val uri = Uri.withAppendedPath(ContactsContract.PhoneLookup.CONTENT_FILTER_URI, Uri.encode(number))
+        val cursor = resolver.query(
+            uri,
+            arrayOf(ContactsContract.PhoneLookup.DISPLAY_NAME),
+            null,
+            null,
+            null,
+        )
+        return cursor?.use {
+            if (it.moveToFirst()) {
+                it.getString(it.getColumnIndexOrThrow(ContactsContract.PhoneLookup.DISPLAY_NAME))
+            } else {
+                null
+            }
+        }
+    }
+
+    /**
      * Places an outgoing call via [Intent.ACTION_CALL] — requires the
      * `CALL_PHONE` permission to be granted already (caller must check/
      * request this before invoking; see MainActivity's runtime permission

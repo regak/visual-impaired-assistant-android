@@ -558,6 +558,72 @@ one feature at a time, each independently verified, once this is solid.
       swipe-down request instead — debounce is NOT implemented, this
       remains an open item for a future pass if the user raises it
       again.
+32. [x] **Swipe-down wording correction + "Soma ujumbe" message reader,
+    Option B** (two explicit user requests handled together this pass):
+    - Wording correction: "Update to use 'Sugua kwenda chini kurudi
+      mwanzo'" — the depth-1 swipe-down instructions text (item 31) had
+      briefly used "...kurudi menu kuu." per an earlier draft; corrected
+      across all 4 sub-pages to the user's final wording.
+    - **"Soma ujumbe" reader, Option B** (user chose Option B after
+      being shown 3 options sourced from checking Kivaisi's 2015 UCT
+      thesis's own Ujumbe View design, found at
+      `/opt/data/home/projects/Visual-Impaired-Assistant/thesis/`):
+      swipe to browse recent SMS messages; arrival/single-tap speaks
+      ONLY a short sender+relative-time preview ("Ujumbe kutoka [jina/
+      namba], [muda] zilizopita."); double-tap speaks the full message
+      body separately; swipe-down returns to the Ujumbe sub-menu — same
+      4-gesture vocabulary reused, no new gesture type introduced.
+    - **Runtime permissions, net-new**: `READ_SMS`/`READ_CONTACTS` were
+      declared in the manifest since Phase 0 but NEVER actually
+      requested at runtime anywhere in the app (required on Android 6+)
+      until this feature — this is the first feature in the app that
+      needs a runtime permission at all. Added an
+      `ActivityResultContracts.RequestMultiplePermissions()` launcher;
+      requests both together (SMS required to enter the reader at all;
+      Contacts only improves the preview by resolving a sender's name —
+      denied-Contacts still works, falling back to the raw number).
+    - **New**: `SimuRepository.contactNameForNumber(number)` — resolves
+      a raw phone number to a saved contact's display name via
+      `ContactsContract.PhoneLookup` (handles number-formatting
+      differences like +255 vs 0 prefixes automatically; this is the
+      platform's own fuzzy phone-number matching, not a manual
+      string-equality scan). Returns null (not a raw fallback itself)
+      so the caller decides the raw-number fallback text.
+    - **New**: `UjumbeRepository.relativeTimeSw(timestampMs, nowMs)` —
+      companion-object pure function, Swahili relative-time phrases:
+      "sasa hivi" / "dakika X zilizopita" / "saa X zilizopita" / "jana"
+      / "tarehe D/M" for anything older. `nowMs` is injectable
+      (defaults to real time) for future unit testing.
+    - **UI**: `SubPage.opensMessageReader` flag (only true for "Soma
+      ujumbe") redirects double-tap at depth 1 into a brand-new depth-2
+      "message reader" level instead of just speaking a placeholder
+      `primaryActionSw` string like every other SubPage still does.
+      `SubPageContent`'s signature changed from a baked-in
+      `onStatusChange(primaryActionSw)` double-tap to an injectable
+      `onDoubleTap: () -> Unit` callback, so the caller (GestureNavContent)
+      decides per-SubPage whether double-tap is a placeholder announce
+      or a real screen transition — existing SubPages (Piga kwa sauti,
+      Anwani, Andika ujumbe) are unaffected, still just speak their
+      `primaryActionSw` text.
+    - **New composable**: `MessageReaderContent` — one message per
+      page inside a `HorizontalPager` exactly like `SubPageContent`'s
+      pattern (same wraparound-virtual-page-count mechanism, same
+      swipe-down-to-go-back gesture block), but tap/double-tap speak the
+      preview vs. full body respectively instead of instructions vs.
+      primary-action.
+    - Reuses existing, previously-unwired repository code with zero
+      changes needed: `UjumbeRepository.recentMessages()` (built in an
+      earlier pass, never called from any UI until now).
+    - `gradle compileDebugKotlin`/`assembleDebug` both exit 0, no
+      warnings. Not yet tested by the user on a real device — in
+      particular the runtime permission dialog flow and `PhoneLookup`
+      contact-name resolution have no device/ADB testing in this
+      sandbox and should be verified first.
+    - Explicitly deferred (per the original Option-B plan, confirmed
+      with user before implementing): reply/delete/call-back actions on
+      a message (thesis had these; not requested this pass); auto-
+      reading new incoming SMS as they arrive (separate BroadcastReceiver
+      feature, still deferred — see Phase 3 checklist).
 
 
 ## Phase 5 — Hardening & on-device testing checklist

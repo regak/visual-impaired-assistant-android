@@ -5,6 +5,7 @@ import android.content.Context
 import android.net.Uri
 import android.provider.Telephony
 import android.telephony.SmsManager
+import java.util.Calendar
 
 /**
  * ContentResolver CRUD against the SMS provider + `SmsManager.sendTextMessage`
@@ -69,5 +70,40 @@ class UjumbeRepository(private val context: Context) {
             put(Telephony.Sms.TYPE, Telephony.Sms.MESSAGE_TYPE_SENT)
         }
         context.contentResolver.insert(Uri.parse("content://sms/sent"), values)
+    }
+
+    companion object {
+        /**
+         * Formats [timestampMs] as a short Swahili relative-time phrase
+         * for the "Soma ujumbe" spoken preview (PLAN.md Phase 4, Option
+         * B) — "sasa hivi" (just now) / "dakika X zilizopita" (X minutes
+         * ago) / "saa X zilizopita" (X hours ago) / "jana" (yesterday) /
+         * falls back to a short date for anything older. [nowMs] is
+         * injectable for testing; defaults to the real current time.
+         */
+        fun relativeTimeSw(timestampMs: Long, nowMs: Long = System.currentTimeMillis()): String {
+            val deltaMs = (nowMs - timestampMs).coerceAtLeast(0L)
+            val minutes = deltaMs / 60_000L
+            val hours = deltaMs / 3_600_000L
+
+            if (minutes < 1) return "sasa hivi" // "just now"
+            if (minutes < 60) return "dakika $minutes zilizopita" // "X minutes ago"
+            if (hours < 24) return "saa $hours zilizopita" // "X hours ago"
+
+            val msgCal = Calendar.getInstance().apply { timeInMillis = timestampMs }
+            val yesterdayCal = Calendar.getInstance().apply {
+                timeInMillis = nowMs
+                add(Calendar.DAY_OF_YEAR, -1)
+            }
+            val sameDay = { a: Calendar, b: Calendar ->
+                a.get(Calendar.YEAR) == b.get(Calendar.YEAR) && a.get(Calendar.DAY_OF_YEAR) == b.get(Calendar.DAY_OF_YEAR)
+            }
+            if (sameDay(msgCal, yesterdayCal)) return "jana" // "yesterday"
+
+            // Older than yesterday: short Swahili date, e.g. "tarehe 3/10".
+            val day = msgCal.get(Calendar.DAY_OF_MONTH)
+            val month = msgCal.get(Calendar.MONTH) + 1
+            return "tarehe $day/$month"
+        }
     }
 }
