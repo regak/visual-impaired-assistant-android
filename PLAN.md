@@ -181,53 +181,70 @@ emulator, so everything above is verified by `gradle compileDebugKotlin`
 + `gradle assembleDebug` exiting 0 and producing a real APK, not by
 running the app.
 
-## Phase 4 — Gesture navigation ✅ (top-level nav, this pass)
+## Phase 4 — Gesture navigation: RESET to gestures-only (explicit user decision)
 
-15. [x] `core/GestureDetector.kt`: custom single/double/long-tap + 4-direction
-    swipe recognizer built directly on Compose's low-level pointer input
-    (`awaitEachGesture`/`awaitPointerEvent`), not `detectTapGestures` (no
-    swipe concept, no built-in single-vs-double-tap disambiguation
-    window). One down/up cycle classifies as: long press (held past
-    `GestureTuning.LONG_PRESS_MS` = 500ms without enough movement to be a
-    swipe) > swipe (released after moving past
-    `GestureTuning.SWIPE_MIN_DISTANCE_DP` = 48dp in one direction) > tap
-    (raced against a second tap within `DOUBLE_TAP_WINDOW_MS` = 300ms to
-    decide single vs double). Exposed as `Modifier.gestureNavigation { ... }`.
-    Per explicit user decision, this is the app's **main/primary feature**,
-    shown before Simu/Ujumbe are reachable at all.
-16. [x] Gesture mapping implemented **for top-level navigation only** (per
-    explicit user decision — in-screen actions inside Simu/Ujumbe stay
-    button-driven for now, extending to full gesture control is deferred
-    to a later pass):
-    - `MainActivity`'s home screen (`HomeGestureScreen`) is now the app's
-      first/main screen: speaks a one-time Swahili orientation prompt on
-      launch ("Swipe right to call. Swipe left for messages. Tap once to
-      hear this again."), then swipe right -> Simu, swipe left -> Ujumbe,
-      single tap or long press -> repeat the prompt. No visible buttons
-      on this screen — it IS the gesture surface. The old two-button
-      chooser and the Phase 1 ASR demo box are both still present
-      underneath as an explicitly-labeled debug aid (kept, not removed,
-      since this build environment has no real device to validate
-      gesture feel on before deciding whether to strip them).
-    - `SimuScreen`/`UjumbeScreen`: swipe down -> back to the home gesture
-      screen (`onGoHome`). Their existing "Piga kwa sauti" / "Tuma ujumbe
-      kwa sauti" / "Soma ujumbe wa hivi karibuni" buttons are unchanged.
-    - Deliberately NOT integrated with Android TalkBack explore-by-touch
-      — this app is designed to be the primary non-sighted UI on its own
-      (every action already has mandatory TTS readback/confirm), not
-      layered under TalkBack. Flagged as a scope decision, not an
-      oversight; revisit if real-device testing shows TalkBack
-      co-existence is actually needed.
-    - **Not yet tuned on a real device** (no ADB/emulator in this build
-      environment, same standing limitation as every other phase): the
-      500ms long-press / 300ms double-tap / 48dp swipe thresholds are
-      reasonable starting defaults, not validated against an actual
-      non-sighted tester's touch behavior. Revisit `GestureTuning` once
-      real-device feedback exists.
-    - **Extending gestures to replace Simu/Ujumbe's in-screen buttons**
-      (double-tap to call, single-tap to read messages, etc.) is
-      deliberately deferred to a later pass per explicit user direction
-      ("top level nav first").
+**Two rounds of the custom `core/GestureDetector.kt` (tap/long-press/
+swipe built on raw `awaitEachGesture`/`awaitPointerEvent`) shipped real,
+user-reported bugs on a real device**: gesture recognition silently
+stopped working after the first swipe/tap on a given surface (root
+cause: cancelling a coroutine mid-suspend inside Compose's low-level
+pointer event dispatch corrupts that pointer-input node's state for the
+next gesture cycle — confirmed by code review across two fix attempts,
+never actually verified fixed on-device since this build environment has
+no ADB/emulator). Separately, `SwahiliTts` had its own real bug (engine
+not actually ready when the first prompt fired on a fast/warm launch).
+
+**Per explicit user direction, this phase restarts from scratch with a
+narrower scope**: gesture navigation ONLY — swipe between Simu and
+Ujumbe pages, matching the original 2015 thesis's ViewPager-style menu
+navigation. No TTS, no ASR/STT, no model download, no voice-confirm
+loop, no permissions, no telephony/SMS logic. Those get layered back in
+one feature at a time, each independently verified, once this is solid.
+
+15. [x] `MainActivity.kt` rewritten from scratch as a plain
+    [`HorizontalPager`](https://developer.android.com/develop/ui/compose/layouts/pager)
+    with two pages (Simu, Ujumbe) — Compose's own official, battle-tested
+    swipe mechanism (used by Google Photos, Play Store, etc. for this
+    exact pattern), NOT the hand-rolled gesture detector. Chosen
+    specifically because `HorizontalPager` has none of the custom
+    coroutine-cancellation-inside-pointer-dispatch fragility that broke
+    `core/GestureDetector.kt` twice. `androidx.compose.foundation:foundation`
+    added to `app/build.gradle.kts` for it.
+16. [x] Each page currently shows only a static Swahili title +
+    subtitle (`Simu` / `Piga simu na anwani`, `Ujumbe` / `Tuma na soma
+    ujumbe`) — intentionally minimal placeholder content, proving the
+    swipe mechanism alone before any feature is reattached. A small dot
+    page-indicator is shown as a **sighted-tester convenience only**, not
+    relied on for non-sighted navigation.
+17. [x] `core/GestureDetector.kt`, `tts/SwahiliTts.kt`, `asr/*`,
+    `core/VoiceInputController.kt`, `core/AudioCapture.kt`,
+    `core/SpeechSegmenter.kt`, `core/DictationController.kt`,
+    `core/ModelDownloader.kt`, `telephony/SimuRepository.kt`,
+    `sms/UjumbeRepository.kt`, `ui/simu/SimuScreen.kt`,
+    `ui/ujumbe/UjumbeScreen.kt` are all **untouched and still compile**,
+    just no longer referenced from `MainActivity` — nothing was deleted,
+    this is a UI-layer-only reset so previous work can be re-attached
+    feature-by-feature rather than rewritten from zero.
+18. [ ] NOT done this pass, by explicit scope: re-wiring TTS, ASR/STT,
+    model download, voice-confirm loop, Simu/Ujumbe real screens, and
+    permissions back onto this pager. Next steps, one at a time, each
+    independently verified before moving to the next:
+    - Re-attach `SimuScreen`/`UjumbeScreen` as the pager's page content
+      (currently just placeholder text) — still without TTS/ASR wired in,
+      so the real UI structure gets pager-nav-tested in isolation first.
+    - Re-attach `ModelDownloader`'s download-gate screen in front of the
+      pager.
+    - Re-attach `SwahiliTts` (fixing its init-race bug from this pass's
+      history) for simple fixed prompts only, no ASR yet.
+    - Re-attach ASR/VoiceInputController/voice-confirm loop last, since
+      it's the most complex and highest-risk piece.
+19. [ ] **Still not verified on a real device** (no ADB/emulator in this
+    build environment, the same standing limitation noted in every
+    phase): `gradle compileDebugKotlin` and `gradle assembleDebug` both
+    exit 0 and produce a real APK, but whether `HorizontalPager` swipe
+    actually feels right / repeatedly works on an actual phone has NOT
+    been confirmed by anyone yet. This is the first thing to check before
+    building anything else on top.
 
 ## Phase 5 — Hardening & on-device testing checklist
 

@@ -62,6 +62,13 @@ dependencies {
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.material3:material3")
+    // HorizontalPager for swipe-between-menus navigation (PLAN.md Phase 4,
+    // gestures-only reset) — official, battle-tested swipe mechanism
+    // instead of a hand-rolled pointer-input gesture detector, after two
+    // rounds of real bugs (state corruption after the first gesture) in
+    // that custom code. Matches the thesis's ViewPager-style Simu/Ujumbe
+    // swipe navigation.
+    implementation("androidx.compose.foundation:foundation")
 
     // sherpa-onnx Kotlin bindings. Not published to Maven Central/Google's
     // repo — k2-fsa ships it only as a GitHub release .aar asset. Bundles
