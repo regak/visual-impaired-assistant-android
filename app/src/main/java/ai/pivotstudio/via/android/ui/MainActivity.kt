@@ -42,8 +42,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ai.pivotstudio.via.android.core.ModelDownloader
 import ai.pivotstudio.via.android.core.AudioCapture
+import ai.pivotstudio.via.android.core.DictationController
+import ai.pivotstudio.via.android.core.GestureEvent
+import ai.pivotstudio.via.android.core.gestureNavigation
 import ai.pivotstudio.via.android.core.SpeechSegmenter
-import ai.pivotstudio.via.android.core.VoiceInputController
 import ai.pivotstudio.via.android.asr.OmnilingualAsrEngine
 import ai.pivotstudio.via.android.sms.UjumbeRepository
 import ai.pivotstudio.via.android.telephony.SimuRepository
@@ -319,6 +321,27 @@ private fun GestureNavContent() {
     var dateGroups by remember { mutableStateOf<List<UjumbeRepository.DateGroup>>(emptyList()) }
     var activeDateGroupIndex by remember { mutableIntStateOf(0) }
 
+    // "Andika ujumbe" (PLAN.md Phase 4, voice SMS composer) — rebuilt this
+    // pass on a press-and-hold-to-speak / release-to-transcribe mechanic
+    // (explicit user request: "can we use a press and hold button to
+    // speak and when release to trascribe like the one we used earlier
+    // in a demo ASR or murmur app"), replacing an earlier fixed-timer
+    // voice-only prototype entirely. depth 4 = recipient capture screen,
+    // depth 5 = message-body capture screen. Both screens reuse the SAME
+    // gesture vocabulary as the rest of this app (single-tap repeats the
+    // current draft/prompt, double-tap confirms+advances, swipe-down
+    // cancels back one screen) PLUS a dedicated press-hold record button
+    // for capture — two separate pointer-input regions on the same
+    // screen, not one overloaded gesture area, so "hold to record" never
+    // has to be disambiguated from "tap to confirm" at the gesture-
+    // recognizer level.
+    var composerRecipientDraft by remember { mutableStateOf<String?>(null) }
+    var composerRecipientLabel by remember { mutableStateOf<String?>(null) }
+    var composerRecipientNumber by remember { mutableStateOf<String?>(null) }
+    var composerBodyDraft by remember { mutableStateOf<String?>(null) }
+    var composerBodyPendingSend by remember { mutableStateOf(false) }
+    var isComposerRecording by remember { mutableStateOf(false) }
+
     // READ_SMS is declared in the manifest but, per Android 6+ runtime
     // permission rules, was never actually requested anywhere until this
     // pass — "Soma ujumbe" is the first feature that needs it. Requesting
@@ -375,11 +398,17 @@ private fun GestureNavContent() {
     // "Andika ujumbe" (PLAN.md Phase 4, voice SMS composer — explicit user
     // request, informed by thesis §3.2.2.2's "message verification after
     // finishing writing" pain point: real 2015 interview participants had
-    // no way to confirm what they'd actually written before it was sent).
-    // Reuses the SAME ASR/VAD pipeline already proven for dictation
-    // (PLAN.md Phase 1) via [VoiceInputController], just pointed at this
-    // app's actual [SpeechOutput] (neural-with-fallback) instead of the
-    // raw system [ai.pivotstudio.via.android.tts.SwahiliTts] engine.
+    // no way to confirm what they'd actually written before it was sent;
+    // addressed here via the double-tap-to-confirm readback below rather
+    // than a spoken "ndiyo"/"hapana" — more reliable than parsing a
+    // yes/no utterance, and consistent with how every other screen in
+    // this app already confirms things). Reuses the SAME ASR/VAD
+    // pipeline already proven for dictation (PLAN.md Phase 1) via
+    // [DictationController] — the exact press-and-hold-to-speak/
+    // release-to-transcribe state machine ported from the sibling
+    // `murmur-android` project, not the fixed-timer [VoiceInputController]
+    // this pass replaces for this flow (VoiceInputController itself is
+    // untouched/still used elsewhere — see its own doc comment).
     val audioCapture = remember { AudioCapture(context) }
     val segmenter = remember { SpeechSegmenter(context) }
     val asrEngine = remember { OmnilingualAsrEngine(context) }
@@ -387,17 +416,38 @@ private fun GestureNavContent() {
         asrEngine.load()
     }
     // composerActive suppresses the general auto-speak LaunchedEffect
-    // below (keyed on statusMessage) while this sequential voice dialog
-    // is running, so each prompt is spoken exactly once — by
-    // VoiceInputController's own `speak` callback, not duplicated by the
-    // page-level auto-announce mechanism, which is designed for the
-    // gesture-nav pager pages, not this multi-turn voice flow.
+    // below (keyed on statusMessage) while depth 4/5 are active, since
+    // those screens manage their own TTS prompts/readback directly
+    // instead of going through the page-level auto-announce mechanism
+    // (which is designed for gesture-nav pager pages, not a multi-step
+    // record/confirm flow).
     var composerActive by remember { mutableStateOf(false) }
-    val voiceInputController = remember {
-        VoiceInputController(audioCapture, segmenter, asrEngine) { text ->
-            statusMessage = text
-            speech.speakAndAwait(text)
+    val dictationController = remember {
+        DictationController(audioCapture, asrEngine, segmenter, context) { result ->
+            isComposerRecording = false
+            when (result) {
+                is DictationController.Result.Transcript -> {
+                    if (depth == 4) {
+                        composerRecipientDraft = result.text
+                        announce("Ulisema: ${result.text}. Gusa mara mbili kuthibitisha, au shikilia tena kurekodi upya.")
+                    } else if (depth == 5) {
+                        composerBodyDraft = result.text
+                        announce("Ulisema: ${result.text}. Gusa mara mbili kuthibitisha, au shikilia tena kurekodi upya.")
+                    }
+                }
+                is DictationController.Result.NoSpeechDetected -> announce("Sikusikia chochote. Shikilia kitufe tena.") // "I didn't hear anything. Hold the button again."
+                is DictationController.Result.Error -> announce("Hitilafu ya kusikiliza: ${result.message}") // "Listening error: <msg>"
+            }
         }
+    }
+    val startComposerRecording: () -> Unit = {
+        if (dictationController.state == DictationController.State.IDLE && audioCapture.hasMicPermission()) {
+            isComposerRecording = true
+            dictationController.startListening(coroutineScope)
+        }
+    }
+    val stopComposerRecording: () -> Unit = {
+        dictationController.stopListening()
     }
 
     // RECORD_AUDIO + SEND_SMS are both declared in the manifest but, per
@@ -413,15 +463,13 @@ private fun GestureNavContent() {
         if (pendingComposerEntry) {
             pendingComposerEntry = false
             if (micGranted && smsSendGranted) {
-                depth = 4
                 composerActive = true
-                coroutineScope.launch {
-                    runAndikaUjumbeFlow(voiceInputController, simuRepository, ujumbeRepository) { finalText ->
-                        composerActive = false
-                        depth = 1
-                        announce(finalText)
-                    }
-                }
+                composerRecipientDraft = null
+                composerRecipientLabel = null
+                composerRecipientNumber = null
+                composerBodyDraft = null
+                depth = 4
+                announce("Shikilia kitufe na useme jina au namba ya mpokeaji, kisha achia.") // "Hold the button and say the recipient's name or number, then release."
             } else {
                 announce("Haiwezi kuandika ujumbe bila ruhusa ya sauti na SMS.") // "Cannot write a message without mic and SMS permission."
             }
@@ -439,7 +487,6 @@ private fun GestureNavContent() {
     // self-hosted voice loaded successfully.
     LaunchedEffect(statusMessage, speechNonce, speechReady) {
         if (!speechReady) return@LaunchedEffect
-        if (composerActive) return@LaunchedEffect // VoiceInputController's own `speak` callback handles this flow's prompts instead.
         speech.speakAndAwait(statusMessage)
         ttsDiagnostic = speech.diagnostic
     }
@@ -534,15 +581,13 @@ private fun GestureNavContent() {
                             val smsSendAlreadyGranted = context.checkSelfPermission(Manifest.permission.SEND_SMS) ==
                                 PackageManager.PERMISSION_GRANTED
                             if (micAlreadyGranted && smsSendAlreadyGranted) {
-                                depth = 4
                                 composerActive = true
-                                coroutineScope.launch {
-                                    runAndikaUjumbeFlow(voiceInputController, simuRepository, ujumbeRepository) { finalText ->
-                                        composerActive = false
-                                        depth = 1
-                                        announce(finalText)
-                                    }
-                                }
+                                composerRecipientDraft = null
+                                composerRecipientLabel = null
+                                composerRecipientNumber = null
+                                composerBodyDraft = null
+                                depth = 4
+                                announce("Shikilia kitufe na useme jina au namba ya mpokeaji, kisha achia.")
                             } else {
                                 pendingComposerEntry = true
                                 composerPermissionLauncher.launch(
@@ -644,19 +689,177 @@ private fun GestureNavContent() {
                 currentPage = messagePagerState.realIndex(groupMessages.size),
                 modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
             )
-        } else {
-            // depth == 4: "Andika ujumbe" voice composer flow in progress
-            // (PLAN.md Phase 4). [VoiceInputController.captureConfirmedUtterance]
-            // auto-listens for a fixed window right after each prompt is
-            // spoken (same timed-capture pattern used everywhere else
-            // this class is used) — no press-and-hold button here, the
-            // flow is fully automatic/sequential. Swipe-down is
-            // intentionally NOT handled at this depth: the flow itself
-            // provides its own cancel path via "hapana" at each confirm
-            // step, matching how every other voice-confirm flow in this
-            // app already works.
-            Box(modifier = Modifier.fillMaxSize().weight(1f), contentAlignment = Alignment.Center) {
-                Text(text = "Andika ujumbe — sikiliza maelekezo...", fontSize = 18.sp) // "Write message — listen to instructions..."
+        } else if (depth == 4) {
+            // "Andika ujumbe" recipient capture screen (PLAN.md Phase 4,
+            // press-and-hold-to-speak/release-to-transcribe rebuild —
+            // explicit user request, murmur-android pattern). Two
+            // separate pointer-input regions so "hold to record" never
+            // has to be disambiguated from "tap to confirm" by the
+            // gesture recognizer: the top RECORD button is a plain
+            // press/release detector (mirrors murmur-android's
+            // `DictationController` demo verbatim), the bottom CONFIRM
+            // area is this app's normal [gestureNavigation] (single-tap
+            // repeats the current draft, double-tap resolves the
+            // contact and advances to depth 5, swipe-down cancels back
+            // to the Ujumbe sub-menu at depth 1).
+            Column(
+                modifier = Modifier.fillMaxSize().weight(1f),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .pointerInput(Unit) {
+                            detectTapGestures(
+                                onPress = {
+                                    startComposerRecording()
+                                    tryAwaitRelease()
+                                    stopComposerRecording()
+                                },
+                            )
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = if (isComposerRecording) {
+                            "Inasikiliza... achia kumaliza" // "Listening... release to finish"
+                        } else {
+                            "Shikilia hapa useme mpokeaji" // "Hold here and say the recipient"
+                        },
+                        fontSize = 20.sp,
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .gestureNavigation { event ->
+                            when (event) {
+                                GestureEvent.SingleTap -> {
+                                    announce(
+                                        composerRecipientDraft?.let { "Ulisema: $it." }
+                                            ?: "Bado hujasema jina au namba. Shikilia kitufe juu.",
+                                    )
+                                }
+                                GestureEvent.DoubleTap -> {
+                                    val draft = composerRecipientDraft
+                                    if (draft == null) {
+                                        announce("Bado hujasema jina au namba. Shikilia kitufe juu.")
+                                    } else {
+                                        val bestContact = simuRepository.searchContactsByVoicedName(draft, maxResults = 1).firstOrNull()
+                                        composerRecipientNumber = bestContact?.number ?: draft
+                                        composerRecipientLabel = bestContact?.displayName ?: draft
+                                        composerBodyDraft = null
+                                        depth = 5
+                                        announce("Shikilia kitufe na useme ujumbe wako, kisha achia.") // "Hold the button and say your message, then release."
+                                    }
+                                }
+                                GestureEvent.SwipeDown -> {
+                                    composerActive = false
+                                    depth = 1
+                                    announce("Umeghairi. Haujatuma ujumbe.") // "You cancelled. You have not sent a message."
+                                }
+                                else -> {}
+                            }
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = "Gusa mara mbili kuthibitisha. Sugua chini kughairi.", // "Double-tap to confirm. Swipe down to cancel."
+                        fontSize = 14.sp,
+                    )
+                }
+            }
+        } else if (depth == 5) {
+            // "Andika ujumbe" message-body capture screen — same two-
+            // region mechanic as depth 4. Double-tap here does a FINAL
+            // combined readback (recipient + full body) and actually
+            // sends on the SECOND double-tap in a row, directly
+            // addressing the thesis §3.2.2.2 "message verification
+            // after finishing writing" finding: the user gets one more
+            // explicit confirm gate before anything is sent, not an
+            // immediate send on the first confirm.
+            Column(
+                modifier = Modifier.fillMaxSize().weight(1f),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .pointerInput(Unit) {
+                            detectTapGestures(
+                                onPress = {
+                                    startComposerRecording()
+                                    tryAwaitRelease()
+                                    stopComposerRecording()
+                                },
+                            )
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = if (isComposerRecording) {
+                            "Inasikiliza... achia kumaliza"
+                        } else {
+                            "Shikilia hapa useme ujumbe" // "Hold here and say the message"
+                        },
+                        fontSize = 20.sp,
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .gestureNavigation { event ->
+                            when (event) {
+                                GestureEvent.SingleTap -> {
+                                    announce(
+                                        composerBodyDraft?.let { "Ulisema: $it." }
+                                            ?: "Bado hujasema ujumbe. Shikilia kitufe juu.",
+                                    )
+                                }
+                                GestureEvent.DoubleTap -> {
+                                    val body = composerBodyDraft
+                                    val label = composerRecipientLabel
+                                    val number = composerRecipientNumber
+                                    if (body == null || label == null || number == null) {
+                                        announce("Bado hujasema ujumbe. Shikilia kitufe juu.")
+                                    } else if (!composerBodyPendingSend) {
+                                        composerBodyPendingSend = true
+                                        announce("Utatuma kwa $label: $body. Gusa mara mbili tena kutuma, au sugua chini kughairi.")
+                                    } else {
+                                        try {
+                                            ujumbeRepository.sendSms(number, body)
+                                            composerActive = false
+                                            composerBodyPendingSend = false
+                                            depth = 1
+                                            announce("Ujumbe umetumwa kwa $label.") // "Message sent to <recipient>."
+                                        } catch (e: Exception) {
+                                            composerBodyPendingSend = false
+                                            announce("Imeshindikana kutuma ujumbe: ${e.message}") // "Failed to send message: <error>"
+                                        }
+                                    }
+                                }
+                                GestureEvent.SwipeDown -> {
+                                    composerBodyPendingSend = false
+                                    depth = 4
+                                    announce(
+                                        composerRecipientDraft?.let { "Ulisema: $it." }
+                                            ?: "Shikilia kitufe na useme jina au namba ya mpokeaji, kisha achia.",
+                                    )
+                                }
+                                else -> {}
+                            }
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = "Gusa mara mbili kuthibitisha na kutuma. Sugua chini kurudi nyuma.", // "Double-tap to confirm and send. Swipe down to go back."
+                        fontSize = 14.sp,
+                    )
+                }
             }
         }
 
@@ -922,100 +1125,3 @@ private fun PageIndicator(pageCount: Int, currentPage: Int, modifier: Modifier =
         }
     }
 }
-
-/**
- * Sequential voice-driven "Andika ujumbe" compose-and-send flow (PLAN.md
- * Phase 4) — explicit user request, directly informed by the 2015
- * thesis's §3.2.2.2 "Read and Write SMS Issues" finding: "Message
- * verification after finishing writing... they had no verification of
- * what..." (participants had no way to confirm what they'd actually
- * written before it was sent). Every step here is read back via TTS and
- * voice-confirmed before proceeding, addressing that exact gap.
- *
- * Steps:
- * 1. Capture + confirm a spoken recipient (contact name or raw number).
- *    If the spoken text resolves to a saved contact via
- *    [SimuRepository.searchContactsByVoicedName], the TOP match's name
- *    and number are used; otherwise the confirmed text is used as a raw
- *    number directly (mirrors [SimuRepository]'s own dial-by-voice
- *    pattern for consistency).
- * 2. Capture + confirm the message body (longer window — dictation, not
- *    a short yes/no).
- * 3. Final combined readback of recipient + full body together, with
- *    one more "ndiyo"/"hapana" gate before [UjumbeRepository.sendSms]
- *    actually sends anything.
- * 4. Calls [onFinished] with a final Swahili status line once the flow
- *    ends (sent, cancelled, or no-response at any step) — caller
- *    (GestureNavContent) uses this to return to depth 1 and speak the
- *    final outcome through the normal [announce] path.
- *
- * Deliberately NOT implemented: multi-way "did you mean X or Y?"
- * contact disambiguation (same scope limitation as [SimuRepository]'s
- * existing dial flow — this app has no on-screen list-selection UI a
- * non-sighted user could operate anyway, so only the single best match
- * is offered, consistent with existing app-wide precedent).
- */
-private suspend fun runAndikaUjumbeFlow(
-    voiceInputController: VoiceInputController,
-    simuRepository: SimuRepository,
-    ujumbeRepository: UjumbeRepository,
-    onFinished: (String) -> Unit,
-) {
-    val recipientResult = voiceInputController.captureConfirmedUtterance(
-        "Sema jina au namba ya mpokeaji.", // "Say the recipient's name or number."
-    )
-    val recipientSpoken = (recipientResult as? VoiceInputController.ConfirmResult.Confirmed)?.text
-    if (recipientSpoken == null) {
-        onFinished(andikaStatusFor(recipientResult))
-        return
-    }
-
-    val bestContact = simuRepository.searchContactsByVoicedName(recipientSpoken, maxResults = 1).firstOrNull()
-    val recipientNumber = bestContact?.number ?: recipientSpoken
-    val recipientLabel = bestContact?.displayName ?: recipientSpoken
-
-    val bodyResult = voiceInputController.captureConfirmedUtterance(
-        "Sema ujumbe wako.", // "Say your message."
-        captureWindowMs = COMPOSER_BODY_CAPTURE_WINDOW_MS,
-    )
-    val body = (bodyResult as? VoiceInputController.ConfirmResult.Confirmed)?.text
-    if (body == null) {
-        onFinished(andikaStatusFor(bodyResult))
-        return
-    }
-
-    val finalConfirm = voiceInputController.captureConfirmedUtterance(
-        "Utatuma kwa $recipientLabel: $body. Sema ndiyo au hapana.", // "You will send to <recipient>: <body>. Say yes or no."
-    )
-    when (finalConfirm) {
-        is VoiceInputController.ConfirmResult.Confirmed -> {
-            // captureConfirmedUtterance's own OWN internal "Ulisema: ...
-            // Sawa?" readback of whatever was just said (ideally "ndiyo")
-            // is a harmless extra confirm layer here — accepted as-is
-            // rather than adding a second bespoke yes/no-only capture
-            // path just for this one call site.
-            try {
-                ujumbeRepository.sendSms(recipientNumber, body)
-                onFinished("Ujumbe umetumwa kwa $recipientLabel.") // "Message sent to <recipient>."
-            } catch (e: Exception) {
-                onFinished("Imeshindikana kutuma ujumbe: ${e.message}") // "Failed to send message: <error>"
-            }
-        }
-        VoiceInputController.ConfirmResult.Rejected -> onFinished("Imeghairiwa. Haujatuma ujumbe.") // "Cancelled. You have not sent a message."
-        VoiceInputController.ConfirmResult.NoResponse -> onFinished("Hakuna jibu. Haujatuma ujumbe.") // "No response. You have not sent a message."
-    }
-}
-
-private fun andikaStatusFor(result: VoiceInputController.ConfirmResult): String = when (result) {
-    is VoiceInputController.ConfirmResult.Confirmed -> result.text
-    VoiceInputController.ConfirmResult.Rejected -> "Imeghairiwa. Haujatuma ujumbe." // "Cancelled. You have not sent a message."
-    VoiceInputController.ConfirmResult.NoResponse -> "Hakuna jibu. Haujatuma ujumbe." // "No response. You have not sent a message."
-}
-
-/**
- * Longer capture window for the message-body step specifically — a
- * recipient name/number is a short utterance, but a dictated SMS body
- * needs meaningfully more time than [VoiceInputController]'s
- * 8-second default before the mic auto-closes.
- */
-private const val COMPOSER_BODY_CAPTURE_WINDOW_MS = 15_000L

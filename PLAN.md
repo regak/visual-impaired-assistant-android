@@ -763,6 +763,52 @@ one feature at a time, each independently verified, once this is solid.
       the FIRST feature in the gesture-nav screen that exercises
       RECORD_AUDIO capture + ASR + SmsManager.sendTextMessage end to
       end, so real-device testing is especially important here.
+36. [x] **"Andika ujumbe" rebuilt on press-and-hold-to-speak /
+    release-to-transcribe** (explicit user request, screenshot of the
+    item-35 fixed-timer version attached: "can we use a press and hold
+    button to speak and when release to trascribe like the one we used
+    earlier in a demo ASR or murmur app. So it will start with numbers
+    or contact then once confirm it goes another window for body
+    message using press and hold button." — user approved the
+    resulting plan with "yes please"). Entirely replaces item 35's
+    `VoiceInputController`-based fixed-timer-capture/"ndiyo"-"hapana"
+    flow for this feature; `VoiceInputController` itself is untouched
+    and still used by `SimuScreen.kt`/`UjumbeScreen.kt`'s old abandoned
+    button-based screens.
+    - **New `DictationController` wiring** (already existed in this
+      repo, ported from `murmur-android` for the Phase 1 milestone, but
+      was never actually used anywhere until now) — the exact
+      press-and-hold/release/VAD/transcribe state machine
+      `murmur-android`'s own demo uses, reused as-is.
+    - **New depth 4 (recipient) + depth 5 (message body)** screens,
+      each with TWO separate pointer-input regions stacked vertically:
+      a top RECORD region (plain press/release detector — hold to
+      record, release to transcribe) and a bottom CONFIRM region using
+      this app's normal `gestureNavigation` (single-tap repeats the
+      current draft, double-tap confirms+advances, swipe-down
+      cancels/goes back). Kept as two separate regions deliberately so
+      "hold to record" never has to be disambiguated from "tap to
+      confirm" by the gesture recognizer itself.
+    - Depth 4 double-tap: resolves the spoken recipient against saved
+      contacts via `SimuRepository.searchContactsByVoicedName` (top
+      match only, falls back to the raw spoken text as a number),
+      advances to depth 5.
+    - Depth 5 double-tap: FIRST double-tap reads back recipient + full
+      body together and arms a `composerBodyPendingSend` flag; the
+      SECOND double-tap in a row actually calls
+      `UjumbeRepository.sendSms` — this two-step double-tap gate is
+      what directly addresses thesis §3.2.2.2's "message verification
+      after finishing writing" finding (no single accidental tap can
+      send a message).
+    - Depth 5 swipe-down returns to depth 4 WITH the recipient draft
+      preserved (not cleared) — only depth 4's swipe-down fully cancels
+      the whole flow back to the Ujumbe sub-menu (depth 1).
+    - `composerActive` continues to suppress the page-level auto-speak
+      `LaunchedEffect` while depth 4/5 are active (unchanged mechanism
+      from item 35, now gating manual `announce()` calls inside the two
+      new screens instead of `VoiceInputController`'s `speak` callback).
+    - `gradle compileDebugKotlin`/`assembleDebug` both exit 0, no
+      warnings. Not yet tested by the user on a real device.
 
 ## Phase 5 — Hardening & on-device testing checklist
 
