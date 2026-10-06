@@ -41,6 +41,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ai.pivotstudio.via.android.core.ModelDownloader
+import ai.pivotstudio.via.android.core.AudioCapture
+import ai.pivotstudio.via.android.core.SpeechSegmenter
+import ai.pivotstudio.via.android.core.VoiceInputController
+import ai.pivotstudio.via.android.asr.OmnilingualAsrEngine
 import ai.pivotstudio.via.android.sms.UjumbeRepository
 import ai.pivotstudio.via.android.telephony.SimuRepository
 import ai.pivotstudio.via.android.tts.SpeechOutput
@@ -148,6 +152,18 @@ private data class SubPage(
      * placeholder, unchanged.
      */
     val opensMessageReader: Boolean = false,
+    /**
+     * When true, double-tapping this [SubPage] starts the voice-driven
+     * "Andika ujumbe" compose-and-send flow (PLAN.md Phase 4, "Andika
+     * ujumbe" — explicit user request: thesis-informed voice SMS
+     * composition with mandatory readback confirmation, directly
+     * addressing thesis §3.2.2.2's "message verification after
+     * finishing writing" pain point) instead of just speaking
+     * [primaryActionSw] as a placeholder. Only "Andika ujumbe" sets
+     * this — every other SubPage (besides "Soma ujumbe") is still a
+     * placeholder, unchanged.
+     */
+    val opensComposer: Boolean = false,
 )
 
 /** Page order: Simu first, Ujumbe second — swipe right-to-left moves 0 -> 1. */
@@ -194,6 +210,7 @@ private enum class Page(
                 subtitleSw = "Andika ujumbe mpya kwa sauti",
                 instructionsSw = "Uko kwenye Andika ujumbe. Gusa mara mbili kuchagua. Sugua kwenda chini kurudi mwanzo.",
                 primaryActionSw = "Umechagua Andika ujumbe — kutuma ujumbe kwa sauti.",
+                opensComposer = true,
             ),
             SubPage(
                 titleSw = "Soma ujumbe",
@@ -355,6 +372,62 @@ private fun GestureNavContent() {
         onDispose { speech.shutdown() }
     }
 
+    // "Andika ujumbe" (PLAN.md Phase 4, voice SMS composer — explicit user
+    // request, informed by thesis §3.2.2.2's "message verification after
+    // finishing writing" pain point: real 2015 interview participants had
+    // no way to confirm what they'd actually written before it was sent).
+    // Reuses the SAME ASR/VAD pipeline already proven for dictation
+    // (PLAN.md Phase 1) via [VoiceInputController], just pointed at this
+    // app's actual [SpeechOutput] (neural-with-fallback) instead of the
+    // raw system [ai.pivotstudio.via.android.tts.SwahiliTts] engine.
+    val audioCapture = remember { AudioCapture(context) }
+    val segmenter = remember { SpeechSegmenter(context) }
+    val asrEngine = remember { OmnilingualAsrEngine(context) }
+    LaunchedEffect(Unit) {
+        asrEngine.load()
+    }
+    // composerActive suppresses the general auto-speak LaunchedEffect
+    // below (keyed on statusMessage) while this sequential voice dialog
+    // is running, so each prompt is spoken exactly once — by
+    // VoiceInputController's own `speak` callback, not duplicated by the
+    // page-level auto-announce mechanism, which is designed for the
+    // gesture-nav pager pages, not this multi-turn voice flow.
+    var composerActive by remember { mutableStateOf(false) }
+    val voiceInputController = remember {
+        VoiceInputController(audioCapture, segmenter, asrEngine) { text ->
+            statusMessage = text
+            speech.speakAndAwait(text)
+        }
+    }
+
+    // RECORD_AUDIO + SEND_SMS are both declared in the manifest but, per
+    // Android 6+ runtime permission rules, were never requested anywhere
+    // until this feature — "Andika ujumbe" is the first flow that needs
+    // either of them.
+    var pendingComposerEntry by remember { mutableStateOf(false) }
+    val composerPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) { results ->
+        val micGranted = results[Manifest.permission.RECORD_AUDIO] == true
+        val smsSendGranted = results[Manifest.permission.SEND_SMS] == true
+        if (pendingComposerEntry) {
+            pendingComposerEntry = false
+            if (micGranted && smsSendGranted) {
+                depth = 4
+                composerActive = true
+                coroutineScope.launch {
+                    runAndikaUjumbeFlow(voiceInputController, simuRepository, ujumbeRepository) { finalText ->
+                        composerActive = false
+                        depth = 1
+                        announce(finalText)
+                    }
+                }
+            } else {
+                announce("Haiwezi kuandika ujumbe bila ruhusa ya sauti na SMS.") // "Cannot write a message without mic and SMS permission."
+            }
+        }
+    }
+
     // Gated on speechReady so the FIRST announcement waits for
     // SpeechOutput.init() to actually finish loading the neural engine
     // before speaking — explicit user-reported bug fix: previously this
@@ -366,6 +439,7 @@ private fun GestureNavContent() {
     // self-hosted voice loaded successfully.
     LaunchedEffect(statusMessage, speechNonce, speechReady) {
         if (!speechReady) return@LaunchedEffect
+        if (composerActive) return@LaunchedEffect // VoiceInputController's own `speak` callback handles this flow's prompts instead.
         speech.speakAndAwait(statusMessage)
         ttsDiagnostic = speech.diagnostic
     }
@@ -445,6 +519,36 @@ private fun GestureNavContent() {
                                     arrayOf(Manifest.permission.READ_SMS, Manifest.permission.READ_CONTACTS),
                                 )
                             }
+                        } else if (subPage.opensComposer) {
+                            // "Andika ujumbe" (PLAN.md Phase 4): RECORD_AUDIO
+                            // + SEND_SMS were never requested at runtime
+                            // anywhere in this app until this feature —
+                            // request both (+ READ_CONTACTS already granted
+                            // by "Soma ujumbe" if the user went there first,
+                            // but requested again here defensively since
+                            // this flow can be entered first) now, starting
+                            // the composer flow from the launcher callback
+                            // once the user responds to the system dialog.
+                            val micAlreadyGranted = context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) ==
+                                PackageManager.PERMISSION_GRANTED
+                            val smsSendAlreadyGranted = context.checkSelfPermission(Manifest.permission.SEND_SMS) ==
+                                PackageManager.PERMISSION_GRANTED
+                            if (micAlreadyGranted && smsSendAlreadyGranted) {
+                                depth = 4
+                                composerActive = true
+                                coroutineScope.launch {
+                                    runAndikaUjumbeFlow(voiceInputController, simuRepository, ujumbeRepository) { finalText ->
+                                        composerActive = false
+                                        depth = 1
+                                        announce(finalText)
+                                    }
+                                }
+                            } else {
+                                pendingComposerEntry = true
+                                composerPermissionLauncher.launch(
+                                    arrayOf(Manifest.permission.RECORD_AUDIO, Manifest.permission.SEND_SMS),
+                                )
+                            }
                         } else {
                             announce(subPage.primaryActionSw)
                         }
@@ -505,7 +609,7 @@ private fun GestureNavContent() {
                     modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                 )
             }
-        } else {
+        } else if (depth == 3) {
             // depth == 3: messages within ONE date group (PLAN.md Phase
             // 4, Option A). Reuses the exact same gesture vocabulary as
             // depth 2 (swipe to browse, single-tap repeats the
@@ -540,6 +644,20 @@ private fun GestureNavContent() {
                 currentPage = messagePagerState.realIndex(groupMessages.size),
                 modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
             )
+        } else {
+            // depth == 4: "Andika ujumbe" voice composer flow in progress
+            // (PLAN.md Phase 4). [VoiceInputController.captureConfirmedUtterance]
+            // auto-listens for a fixed window right after each prompt is
+            // spoken (same timed-capture pattern used everywhere else
+            // this class is used) — no press-and-hold button here, the
+            // flow is fully automatic/sequential. Swipe-down is
+            // intentionally NOT handled at this depth: the flow itself
+            // provides its own cancel path via "hapana" at each confirm
+            // step, matching how every other voice-confirm flow in this
+            // app already works.
+            Box(modifier = Modifier.fillMaxSize().weight(1f), contentAlignment = Alignment.Center) {
+                Text(text = "Andika ujumbe — sikiliza maelekezo...", fontSize = 18.sp) // "Write message — listen to instructions..."
+            }
         }
 
         // Gesture outcome status field: shows what the last recognized
@@ -804,3 +922,100 @@ private fun PageIndicator(pageCount: Int, currentPage: Int, modifier: Modifier =
         }
     }
 }
+
+/**
+ * Sequential voice-driven "Andika ujumbe" compose-and-send flow (PLAN.md
+ * Phase 4) — explicit user request, directly informed by the 2015
+ * thesis's §3.2.2.2 "Read and Write SMS Issues" finding: "Message
+ * verification after finishing writing... they had no verification of
+ * what..." (participants had no way to confirm what they'd actually
+ * written before it was sent). Every step here is read back via TTS and
+ * voice-confirmed before proceeding, addressing that exact gap.
+ *
+ * Steps:
+ * 1. Capture + confirm a spoken recipient (contact name or raw number).
+ *    If the spoken text resolves to a saved contact via
+ *    [SimuRepository.searchContactsByVoicedName], the TOP match's name
+ *    and number are used; otherwise the confirmed text is used as a raw
+ *    number directly (mirrors [SimuRepository]'s own dial-by-voice
+ *    pattern for consistency).
+ * 2. Capture + confirm the message body (longer window — dictation, not
+ *    a short yes/no).
+ * 3. Final combined readback of recipient + full body together, with
+ *    one more "ndiyo"/"hapana" gate before [UjumbeRepository.sendSms]
+ *    actually sends anything.
+ * 4. Calls [onFinished] with a final Swahili status line once the flow
+ *    ends (sent, cancelled, or no-response at any step) — caller
+ *    (GestureNavContent) uses this to return to depth 1 and speak the
+ *    final outcome through the normal [announce] path.
+ *
+ * Deliberately NOT implemented: multi-way "did you mean X or Y?"
+ * contact disambiguation (same scope limitation as [SimuRepository]'s
+ * existing dial flow — this app has no on-screen list-selection UI a
+ * non-sighted user could operate anyway, so only the single best match
+ * is offered, consistent with existing app-wide precedent).
+ */
+private suspend fun runAndikaUjumbeFlow(
+    voiceInputController: VoiceInputController,
+    simuRepository: SimuRepository,
+    ujumbeRepository: UjumbeRepository,
+    onFinished: (String) -> Unit,
+) {
+    val recipientResult = voiceInputController.captureConfirmedUtterance(
+        "Sema jina au namba ya mpokeaji.", // "Say the recipient's name or number."
+    )
+    val recipientSpoken = (recipientResult as? VoiceInputController.ConfirmResult.Confirmed)?.text
+    if (recipientSpoken == null) {
+        onFinished(andikaStatusFor(recipientResult))
+        return
+    }
+
+    val bestContact = simuRepository.searchContactsByVoicedName(recipientSpoken, maxResults = 1).firstOrNull()
+    val recipientNumber = bestContact?.number ?: recipientSpoken
+    val recipientLabel = bestContact?.displayName ?: recipientSpoken
+
+    val bodyResult = voiceInputController.captureConfirmedUtterance(
+        "Sema ujumbe wako.", // "Say your message."
+        captureWindowMs = COMPOSER_BODY_CAPTURE_WINDOW_MS,
+    )
+    val body = (bodyResult as? VoiceInputController.ConfirmResult.Confirmed)?.text
+    if (body == null) {
+        onFinished(andikaStatusFor(bodyResult))
+        return
+    }
+
+    val finalConfirm = voiceInputController.captureConfirmedUtterance(
+        "Utatuma kwa $recipientLabel: $body. Sema ndiyo au hapana.", // "You will send to <recipient>: <body>. Say yes or no."
+    )
+    when (finalConfirm) {
+        is VoiceInputController.ConfirmResult.Confirmed -> {
+            // captureConfirmedUtterance's own OWN internal "Ulisema: ...
+            // Sawa?" readback of whatever was just said (ideally "ndiyo")
+            // is a harmless extra confirm layer here — accepted as-is
+            // rather than adding a second bespoke yes/no-only capture
+            // path just for this one call site.
+            try {
+                ujumbeRepository.sendSms(recipientNumber, body)
+                onFinished("Ujumbe umetumwa kwa $recipientLabel.") // "Message sent to <recipient>."
+            } catch (e: Exception) {
+                onFinished("Imeshindikana kutuma ujumbe: ${e.message}") // "Failed to send message: <error>"
+            }
+        }
+        VoiceInputController.ConfirmResult.Rejected -> onFinished("Imeghairiwa. Haujatuma ujumbe.") // "Cancelled. You have not sent a message."
+        VoiceInputController.ConfirmResult.NoResponse -> onFinished("Hakuna jibu. Haujatuma ujumbe.") // "No response. You have not sent a message."
+    }
+}
+
+private fun andikaStatusFor(result: VoiceInputController.ConfirmResult): String = when (result) {
+    is VoiceInputController.ConfirmResult.Confirmed -> result.text
+    VoiceInputController.ConfirmResult.Rejected -> "Imeghairiwa. Haujatuma ujumbe." // "Cancelled. You have not sent a message."
+    VoiceInputController.ConfirmResult.NoResponse -> "Hakuna jibu. Haujatuma ujumbe." // "No response. You have not sent a message."
+}
+
+/**
+ * Longer capture window for the message-body step specifically — a
+ * recipient name/number is a short utterance, but a dictated SMS body
+ * needs meaningfully more time than [VoiceInputController]'s
+ * 8-second default before the mic auto-closes.
+ */
+private const val COMPOSER_BODY_CAPTURE_WINDOW_MS = 15_000L

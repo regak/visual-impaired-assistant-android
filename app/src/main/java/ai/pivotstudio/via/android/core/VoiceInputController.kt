@@ -1,7 +1,6 @@
 package ai.pivotstudio.via.android.core
 
 import ai.pivotstudio.via.android.asr.TranscriptionEngine
-import ai.pivotstudio.via.android.tts.SwahiliTts
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -31,7 +30,17 @@ class VoiceInputController(
     private val audioCapture: AudioCapture,
     private val segmenter: SpeechSegmenter,
     private val asrEngine: TranscriptionEngine,
-    private val tts: SwahiliTts,
+    /**
+     * Speaks [text] and suspends until playback finishes. Originally a
+     * concrete [ai.pivotstudio.via.android.tts.SwahiliTts] parameter;
+     * widened to a plain lambda (PLAN.md Phase 4, "Andika ujumbe" voice
+     * composer) so callers can pass
+     * [ai.pivotstudio.via.android.tts.SpeechOutput.speakAndAwait]
+     * instead — the app's actual neural-voice-with-fallback entry
+     * point used everywhere else in `MainActivity`, not the raw system
+     * engine alone.
+     */
+    private val speak: suspend (String) -> Unit,
 ) {
     sealed class ConfirmResult {
         data class Confirmed(val text: String) : ConfirmResult()
@@ -53,14 +62,14 @@ class VoiceInputController(
         captureWindowMs: Long = DEFAULT_CAPTURE_WINDOW_MS,
         confirmWindowMs: Long = DEFAULT_CONFIRM_WINDOW_MS,
     ): ConfirmResult {
-        tts.speakAndAwait(promptTts)
+        speak(promptTts)
         val utterance = captureUtterance(captureWindowMs)
         if (utterance.isBlank()) {
-            tts.speakAndAwait("Sikusikia chochote.") // "I didn't hear anything."
+            speak("Sikusikia chochote.") // "I didn't hear anything."
             return ConfirmResult.NoResponse
         }
 
-        tts.speakAndAwait("Ulisema: $utterance. Sawa?") // "You said: <text>. Correct?"
+        speak("Ulisema: $utterance. Sawa?") // "You said: <text>. Correct?"
         val response = captureUtterance(confirmWindowMs)
         return when {
             response.isBlank() -> ConfirmResult.NoResponse

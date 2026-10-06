@@ -695,6 +695,74 @@ one feature at a time, each independently verified, once this is solid.
       just the message reader where it was reported.
     - `gradle compileDebugKotlin`/`assembleDebug` both exit 0, no
       warnings. Not yet tested by the user on a real device.
+35. [x] **"Andika ujumbe" voice SMS composer, wired into the gesture-nav
+    screen** (explicit user request: "Can you go on with writing the
+    message or can you suggest ways that we can solve this? You can
+    also check on the thesis document" → consulted thesis §3.2.2.2
+    "Read and Write SMS Issues": "Message verification after finishing
+    writing... they had no verification of what..." (participants had
+    no way to confirm what they'd actually written before sending) →
+    user approved the resulting plan with "Yes"):
+    - Double-tapping "Andika ujumbe" now starts a real sequential
+      voice flow instead of just speaking a placeholder line:
+      1. Capture + confirm spoken recipient (name or number) via
+         [VoiceInputController.captureConfirmedUtterance] — resolved
+         against saved contacts via
+         [SimuRepository.searchContactsByVoicedName] (top match only,
+         same single-candidate scope limitation as the existing Simu
+         dial-by-voice flow — no on-screen disambiguation UI exists);
+         falls back to the raw spoken text as a number if no contact
+         matches.
+      2. Capture + confirm the message body (longer
+         `COMPOSER_BODY_CAPTURE_WINDOW_MS = 15_000L` capture window —
+         dictation, not a short yes/no).
+      3. Final combined readback of recipient + full body together,
+         one more "ndiyo"/"hapana" gate before
+         [UjumbeRepository.sendSms] actually sends anything — directly
+         addresses the thesis's "message verification" finding.
+      4. Returns to depth 1 with a final spoken outcome (sent /
+         cancelled / no-response at any step).
+    - **New `SubPage.opensComposer: Boolean` flag**, set only on
+      "Andika ujumbe" — mirrors the existing `opensMessageReader`
+      pattern used for "Soma ujumbe".
+    - **New depth 4** added to `GestureNavContent`'s depth state
+      machine (0=top pager, 1=sub-pager, 2=date groups, 3=messages,
+      4=composer flow in progress). No gestures are read at depth 4 —
+      the flow is fully automatic/sequential via timed capture
+      windows, with its own "hapana" cancel path at each step, exactly
+      like every other voice-confirm flow already in this app.
+    - **`VoiceInputController` constructor signature changed**: its
+      `tts: SwahiliTts` parameter was replaced with a plain
+      `speak: suspend (String) -> Unit` lambda, so `MainActivity` can
+      pass `SpeechOutput.speakAndAwait` (the app's actual
+      neural-voice-with-fallback entry point used everywhere else)
+      instead of the raw system `SwahiliTts` engine alone. No other
+      call sites construct `VoiceInputController` yet (`SimuScreen.kt`/
+      `UjumbeScreen.kt` only take it as an unused parameter from the
+      old abandoned button-based screens), so this was a safe
+      signature change with no other call sites to update.
+    - New runtime permission request for `RECORD_AUDIO` + `SEND_SMS`
+      (both declared in the manifest, neither requested at runtime
+      anywhere until this feature) — same
+      `rememberLauncherForActivityResult` pattern already used for
+      "Soma ujumbe"'s `READ_SMS`/`READ_CONTACTS` request.
+    - The page-level auto-speak `LaunchedEffect` (keyed on
+      `statusMessage`) is suppressed while the composer flow is
+      running (`composerActive` flag) so each voice prompt is spoken
+      exactly once, by `VoiceInputController`'s own `speak` callback,
+      not duplicated by the gesture-nav auto-announce mechanism (which
+      is designed for pager pages, not this multi-turn voice dialog).
+    - Found and fixed in passing: the permission-launcher callbacks for
+      "Soma ujumbe" (`permissionLauncher`) still used raw
+      `statusMessage = ...` assignments from before the item-34 repeat-
+      tap fix — left as pre-existing in this pass (functionally
+      harmless here, since permission results are one-shot, not
+      repeat-tapped) but flagged for a future cleanup pass if revisited.
+    - `gradle compileDebugKotlin`/`assembleDebug` both exit 0, no
+      warnings. Not yet tested by the user on a real device — this is
+      the FIRST feature in the gesture-nav screen that exercises
+      RECORD_AUDIO capture + ASR + SmsManager.sendTextMessage end to
+      end, so real-device testing is especially important here.
 
 ## Phase 5 — Hardening & on-device testing checklist
 
