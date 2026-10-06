@@ -1,6 +1,8 @@
 package ai.pivotstudio.via.android.ui.simu
 
+import ai.pivotstudio.via.android.core.GestureEvent
 import ai.pivotstudio.via.android.core.VoiceInputController
+import ai.pivotstudio.via.android.core.gestureNavigation
 import ai.pivotstudio.via.android.telephony.SimuRepository
 import ai.pivotstudio.via.android.tts.SwahiliTts
 import android.util.Log
@@ -40,19 +42,30 @@ import kotlinx.coroutines.launch
  * If no contact matches, the confirmed utterance is dialed directly as a
  * phone number (a spoken number transcribes as digits via the ASR model,
  * not a contact name).
+ *
+ * Gesture nav (PLAN.md Phase 4, top-level nav only this pass): swipe down
+ * returns to the home gesture screen via [onGoHome]. In-screen actions
+ * (call-by-voice, etc.) remain button-driven for now — only top-level
+ * navigation between Simu/Ujumbe/home is gesture-based in this pass.
  */
 @Composable
 fun SimuScreen(
     voiceInputController: VoiceInputController,
     simuRepository: SimuRepository,
     tts: SwahiliTts,
+    onGoHome: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var status by remember { mutableStateOf("Bonyeza kupiga kwa sauti.") } // "Press to call by voice."
     val scope = rememberCoroutineScope()
 
     Column(
-        modifier = modifier.fillMaxSize().padding(16.dp),
+        modifier = modifier
+            .fillMaxSize()
+            .gestureNavigation { gesture ->
+                if (gesture == GestureEvent.SwipeDown) onGoHome()
+            }
+            .padding(16.dp),
         verticalArrangement = Arrangement.Top,
     ) {
         Text("Simu — piga kwa sauti")

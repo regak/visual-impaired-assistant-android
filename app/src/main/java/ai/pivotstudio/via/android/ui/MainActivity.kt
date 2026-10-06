@@ -3,9 +3,11 @@ package ai.pivotstudio.via.android.ui
 import ai.pivotstudio.via.android.asr.OmnilingualAsrEngine
 import ai.pivotstudio.via.android.core.AudioCapture
 import ai.pivotstudio.via.android.core.DictationController
+import ai.pivotstudio.via.android.core.GestureEvent
 import ai.pivotstudio.via.android.core.ModelDownloader
 import ai.pivotstudio.via.android.core.SpeechSegmenter
 import ai.pivotstudio.via.android.core.VoiceInputController
+import ai.pivotstudio.via.android.core.gestureNavigation
 import ai.pivotstudio.via.android.sms.UjumbeRepository
 import ai.pivotstudio.via.android.telephony.SimuRepository
 import ai.pivotstudio.via.android.tts.SwahiliTts
@@ -25,12 +27,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -295,46 +297,31 @@ private fun AppRoot(
 ) {
     var section by remember { mutableStateOf(Section.CHOOSER) }
     when (section) {
-        Section.CHOOSER -> Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-            Text("Visual Impaired Assistant")
-            Spacer(modifier = Modifier.height(8.dp))
-            Button(onClick = { section = Section.SIMU }) { Text("Simu") }
-            Spacer(modifier = Modifier.height(8.dp))
-            Button(onClick = { section = Section.UJUMBE }) { Text("Ujumbe") }
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Phase 1 milestone demo (PLAN.md item 5): press-and-hold to
-            // speak Swahili, release to see the raw transcript. Kept as a
-            // standalone sanity-check tool alongside the real Simu/Ujumbe
-            // voice-confirm flows (which use VoiceInputController instead).
-            Text("ASR demo: hold the box below, speak, then release.")
-            Spacer(modifier = Modifier.height(8.dp))
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(120.dp)
-                    .pointerInput(Unit) {
-                        detectTapGestures(
-                            onPress = {
-                                onPressStart()
-                                tryAwaitRelease()
-                                onPressEnd()
-                            },
-                        )
-                    },
-                contentAlignment = Alignment.Center,
-            ) {
-                Text("Hold to talk")
-            }
-            if (lastTranscript.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(text = lastTranscript, fontSize = 18.sp)
-            }
-        }
+        // Gesture-first home screen (PLAN.md Phase 4, top-level nav only
+        // this pass): swipe right -> Simu, swipe left -> Ujumbe, single
+        // tap -> repeat the orientation prompt. No visible buttons here —
+        // this whole screen IS the gesture surface, matching how a
+        // non-sighted user actually needs to navigate (can't read button
+        // labels). The old two-button chooser and the Phase 1 ASR demo
+        // box are kept below as a secondary, explicitly-labeled debug aid
+        // (still reachable by sighted testers / this build environment's
+        // lack of a real device), not removed outright.
+        Section.CHOOSER -> HomeGestureScreen(
+            lastTranscript = lastTranscript,
+            onPressStart = onPressStart,
+            onPressEnd = onPressEnd,
+            tts = tts,
+            onNavigate = { section = it },
+        )
         Section.SIMU -> {
             val vic = voiceInputController
             if (vic != null) {
-                SimuScreen(voiceInputController = vic, simuRepository = simuRepository, tts = tts)
+                SimuScreen(
+                    voiceInputController = vic,
+                    simuRepository = simuRepository,
+                    tts = tts,
+                    onGoHome = { section = Section.CHOOSER },
+                )
             } else {
                 Text("Speech engine still loading...")
             }
@@ -342,10 +329,99 @@ private fun AppRoot(
         Section.UJUMBE -> {
             val vic = voiceInputController
             if (vic != null) {
-                UjumbeScreen(voiceInputController = vic, ujumbeRepository = ujumbeRepository, tts = tts)
+                UjumbeScreen(
+                    voiceInputController = vic,
+                    ujumbeRepository = ujumbeRepository,
+                    tts = tts,
+                    onGoHome = { section = Section.CHOOSER },
+                )
             } else {
                 Text("Speech engine still loading...")
             }
         }
     }
 }
+
+/**
+ * The app's main/first screen (per explicit user direction: gesture nav
+ * is the primary feature, ahead of Simu/Ujumbe). Speaks a one-time
+ * orientation prompt on first composition, then listens for:
+ * - swipe right -> Simu
+ * - swipe left -> Ujumbe
+ * - single tap -> repeat the orientation prompt (in case it was missed)
+ * - long press -> also repeats the prompt (reserved for a future "help"
+ *   action once there's more than one thing to disambiguate)
+ *
+ * Double-tap and swipe up/down are recognized by [gestureNavigation] but
+ * have no action on this screen yet (swipe down is reserved for sub-
+ * screens to mean "go home" — meaningless on the home screen itself).
+ */
+@Composable
+private fun HomeGestureScreen(
+    lastTranscript: String,
+    onPressStart: () -> Unit,
+    onPressEnd: () -> Unit,
+    tts: SwahiliTts,
+    onNavigate: (Section) -> Unit,
+) {
+    val scope = rememberCoroutineScopeCompat()
+    val orientationPrompt = "Piga simu, kaza kulia. Tuma ujumbe, kaza kushoto." +
+        " Gusa mara moja kusikia tena." // "Swipe right to call. Swipe left for messages. Tap once to hear this again."
+
+    LaunchedEffect(Unit) {
+        tts.speakAndAwait(orientationPrompt)
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .gestureNavigation { gesture ->
+                when (gesture) {
+                    GestureEvent.SwipeRight -> onNavigate(Section.SIMU)
+                    GestureEvent.SwipeLeft -> onNavigate(Section.UJUMBE)
+                    GestureEvent.SingleTap, GestureEvent.LongPress ->
+                        scope.launch { tts.speakAndAwait(orientationPrompt) }
+                    else -> {}
+                }
+            }
+            .padding(16.dp),
+    ) {
+        Text("Visual Impaired Assistant")
+        Spacer(modifier = Modifier.height(8.dp))
+        Text("Kaza kulia: Simu. Kaza kushoto: Ujumbe. Gusa: sikia tena.")
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Phase 1 milestone demo (PLAN.md item 5): press-and-hold to speak
+        // Swahili, release to see the raw transcript. Kept as a
+        // standalone, explicitly-labeled sanity-check tool — separate
+        // touch target from the gesture surface above so it doesn't
+        // interfere with swipe/tap navigation.
+        Text("ASR demo (debug): hold the box below, speak, then release.")
+        Spacer(modifier = Modifier.height(8.dp))
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(120.dp)
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onPress = {
+                            onPressStart()
+                            tryAwaitRelease()
+                            onPressEnd()
+                        },
+                    )
+                },
+            contentAlignment = Alignment.Center,
+        ) {
+            Text("Hold to talk")
+        }
+        if (lastTranscript.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(text = lastTranscript, fontSize = 18.sp)
+        }
+    }
+}
+
+/** Tiny indirection so this file doesn't need an extra Compose import line just for the common name. */
+@Composable
+private fun rememberCoroutineScopeCompat() = androidx.compose.runtime.rememberCoroutineScope()

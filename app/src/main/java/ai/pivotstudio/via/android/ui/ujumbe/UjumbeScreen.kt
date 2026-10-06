@@ -1,6 +1,8 @@
 package ai.pivotstudio.via.android.ui.ujumbe
 
+import ai.pivotstudio.via.android.core.GestureEvent
 import ai.pivotstudio.via.android.core.VoiceInputController
+import ai.pivotstudio.via.android.core.gestureNavigation
 import ai.pivotstudio.via.android.sms.UjumbeRepository
 import ai.pivotstudio.via.android.tts.SwahiliTts
 import android.util.Log
@@ -34,19 +36,31 @@ import kotlinx.coroutines.launch
  * Incoming-SMS BroadcastReceiver (reads new messages aloud, PLAN.md item
  * 13) is still deferred — this screen only covers composing/sending and
  * reading back the on-device SMS log.
+ *
+ * Gesture nav (PLAN.md Phase 4, top-level nav only this pass): swipe down
+ * returns to the home gesture screen via [onGoHome]. In-screen actions
+ * (send-by-voice, read-recent) remain button-driven for now — only
+ * top-level navigation between Simu/Ujumbe/home is gesture-based in this
+ * pass.
  */
 @Composable
 fun UjumbeScreen(
     voiceInputController: VoiceInputController,
     ujumbeRepository: UjumbeRepository,
     tts: SwahiliTts,
+    onGoHome: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var status by remember { mutableStateOf("Bonyeza kutuma ujumbe kwa sauti.") } // "Press to send SMS by voice."
     val scope = rememberCoroutineScope()
 
     Column(
-        modifier = modifier.fillMaxSize().padding(16.dp),
+        modifier = modifier
+            .fillMaxSize()
+            .gestureNavigation { gesture ->
+                if (gesture == GestureEvent.SwipeDown) onGoHome()
+            }
+            .padding(16.dp),
         verticalArrangement = Arrangement.Top,
     ) {
         Text("Ujumbe — tuma kwa sauti")

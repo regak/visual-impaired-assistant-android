@@ -181,16 +181,53 @@ emulator, so everything above is verified by `gradle compileDebugKotlin`
 + `gradle assembleDebug` exiting 0 and producing a real APK, not by
 running the app.
 
-## Phase 4 — Gesture navigation
+## Phase 4 — Gesture navigation ✅ (top-level nav, this pass)
 
-15. Custom tap/swipe gesture detector (`onTouchListener` + `CountDownTimer`
-    for single/double/long tap + 4-direction swipe, per the thesis) to
-    replace this scaffold's two-button chooser as the primary navigation
-    — critical for actual non-sighted usability, since reading on-screen
-    buttons isn't viable for this app's target users.
-16. Map gestures: e.g. swipe right/left = switch between Simu/Ujumbe,
-    double-tap = confirm/select, long-press = cancel/back, matching (or
-    deliberately improving on) the thesis's original gesture vocabulary.
+15. [x] `core/GestureDetector.kt`: custom single/double/long-tap + 4-direction
+    swipe recognizer built directly on Compose's low-level pointer input
+    (`awaitEachGesture`/`awaitPointerEvent`), not `detectTapGestures` (no
+    swipe concept, no built-in single-vs-double-tap disambiguation
+    window). One down/up cycle classifies as: long press (held past
+    `GestureTuning.LONG_PRESS_MS` = 500ms without enough movement to be a
+    swipe) > swipe (released after moving past
+    `GestureTuning.SWIPE_MIN_DISTANCE_DP` = 48dp in one direction) > tap
+    (raced against a second tap within `DOUBLE_TAP_WINDOW_MS` = 300ms to
+    decide single vs double). Exposed as `Modifier.gestureNavigation { ... }`.
+    Per explicit user decision, this is the app's **main/primary feature**,
+    shown before Simu/Ujumbe are reachable at all.
+16. [x] Gesture mapping implemented **for top-level navigation only** (per
+    explicit user decision — in-screen actions inside Simu/Ujumbe stay
+    button-driven for now, extending to full gesture control is deferred
+    to a later pass):
+    - `MainActivity`'s home screen (`HomeGestureScreen`) is now the app's
+      first/main screen: speaks a one-time Swahili orientation prompt on
+      launch ("Swipe right to call. Swipe left for messages. Tap once to
+      hear this again."), then swipe right -> Simu, swipe left -> Ujumbe,
+      single tap or long press -> repeat the prompt. No visible buttons
+      on this screen — it IS the gesture surface. The old two-button
+      chooser and the Phase 1 ASR demo box are both still present
+      underneath as an explicitly-labeled debug aid (kept, not removed,
+      since this build environment has no real device to validate
+      gesture feel on before deciding whether to strip them).
+    - `SimuScreen`/`UjumbeScreen`: swipe down -> back to the home gesture
+      screen (`onGoHome`). Their existing "Piga kwa sauti" / "Tuma ujumbe
+      kwa sauti" / "Soma ujumbe wa hivi karibuni" buttons are unchanged.
+    - Deliberately NOT integrated with Android TalkBack explore-by-touch
+      — this app is designed to be the primary non-sighted UI on its own
+      (every action already has mandatory TTS readback/confirm), not
+      layered under TalkBack. Flagged as a scope decision, not an
+      oversight; revisit if real-device testing shows TalkBack
+      co-existence is actually needed.
+    - **Not yet tuned on a real device** (no ADB/emulator in this build
+      environment, same standing limitation as every other phase): the
+      500ms long-press / 300ms double-tap / 48dp swipe thresholds are
+      reasonable starting defaults, not validated against an actual
+      non-sighted tester's touch behavior. Revisit `GestureTuning` once
+      real-device feedback exists.
+    - **Extending gestures to replace Simu/Ujumbe's in-screen buttons**
+      (double-tap to call, single-tap to read messages, etc.) is
+      deliberately deferred to a later pass per explicit user direction
+      ("top level nav first").
 
 ## Phase 5 — Hardening & on-device testing checklist
 
