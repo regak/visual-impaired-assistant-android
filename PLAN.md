@@ -924,6 +924,35 @@ one feature at a time, each independently verified, once this is solid.
     CONTACT NAMES (containing non-digit characters) still go through
     fuzzy matching. `gradle compileDebugKotlin`/`assembleDebug` both
     exit 0, no warnings.
+42. [x] **Switched `SwahiliNumberWordConverter` from exact-match +
+    hardcoded variants to fuzzy matching** (explicit user bug report:
+    "sifuri" — a real ASR spelling of "sufuri"/zero — printed
+    unconverted since it wasn't in the hardcoded variant list;
+    explicit follow-up request: "use the fuzzy matching version").
+    Extracted the Levenshtein-similarity scoring already proven by
+    `SimuRepository`'s contact-name matching into a new shared
+    `core/TextSimilarity.kt` utility, used by both classes now.
+    Dropped the old `VARIANTS` hardcoded map entirely. Threshold
+    tuning caught two real failure modes during manual verification
+    (not yet on-device) before settling on 0.8 + tie-rejection:
+    - 0.65 threshold correctly matched "sifuri"~"sufuri" (0.83) and
+      "mbiri"~"mbili" (0.8), but ALSO false-positived the common word
+      "sawa" ("okay") as "saba" (0.75), and had an unresolved tie
+      between "tano" and "tatu" for "tanu" (both exactly 0.75) — i.e.
+      it could silently convert an ordinary sentence word, or pick
+      the WRONG digit for an ambiguous one.
+    - Raised threshold to 0.8 and added tie-rejection (if the top two
+      candidates are within 0.001 of each other and point to
+      different words, treat as no match) — eliminates both failure
+      modes; "tanu"/"nenne" now fall through unconverted (safer than
+      guessing) while "sifuri"/"mbiri" still convert correctly.
+    - `gradle compileDebugKotlin`/`assembleDebug` both exit 0, no
+      warnings. Logic verified via a standalone Python port of the
+      Levenshtein scoring against real transcript words AND common
+      non-number Swahili words (sawa, habari, asante, jina, namba,
+      leo, jana, ujumbe, vizuri, hujambo, kwaheri — all correctly
+      non-matching); not yet verified against a live on-device
+      dictation.
 
 ## Phase 5 — Hardening & on-device testing checklist
 
