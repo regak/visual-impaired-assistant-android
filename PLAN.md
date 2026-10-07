@@ -809,6 +809,17 @@ one feature at a time, each independently verified, once this is solid.
       new screens instead of `VoiceInputController`'s `speak` callback).
     - `gradle compileDebugKotlin`/`assembleDebug` both exit 0, no
       warnings. Not yet tested by the user on a real device.
+37. [x] **"Andika ujumbe" record/confirm areas color-differentiated**
+    (explicit user request: "can you differentiate the two areas with
+    different colors?", after item 36's merged-region attempt was
+    reverted back to the split top/bottom layout per "The changes makes
+    it difficult. restore the previous version..."). Pale amber
+    background on the RECORD box (deeper amber while actively
+    listening), pale blue background on the CONFIRM box — same split
+    layout and gesture behavior as before, purely a visual cue for
+    sighted testers/family helpers (this app's actual non-sighted users
+    don't rely on it). `gradle compileDebugKotlin`/`assembleDebug` both
+    exit 0, no warnings.
 
 ## Phase 5 — Hardening & on-device testing checklist
 

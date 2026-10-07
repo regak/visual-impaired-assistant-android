@@ -9,6 +9,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -238,6 +239,19 @@ private const val VIRTUAL_PAGE_COUNT = 10_000
 
 private fun startVirtualPage(itemCount: Int): Int =
     VIRTUAL_PAGE_COUNT / 2 - (VIRTUAL_PAGE_COUNT / 2) % itemCount
+
+/**
+ * "Andika ujumbe" record vs. confirm area colors (PLAN.md Phase 4 —
+ * explicit user request: "can you differentiate the two areas with
+ * different colors?"). Warm amber for RECORD (hold-to-speak), cool
+ * blue for CONFIRM (tap/double-tap/swipe) — distinct enough to read as
+ * two separate zones for sighted testers/family helpers, while still
+ * being muted/pale enough not to compete with the on-screen text this
+ * app's actual non-sighted users don't rely on anyway.
+ */
+private val RECORD_AREA_COLOR = Color(0xFFFFE0B2) // pale amber
+private val RECORD_AREA_ACTIVE_COLOR = Color(0xFFFFB74D) // deeper amber while actively listening
+private val CONFIRM_AREA_COLOR = Color(0xFFBBDEFB) // pale blue
 
 private fun PagerState.realIndex(itemCount: Int): Int =
     ((currentPage % itemCount) + itemCount) % itemCount
@@ -710,6 +724,7 @@ private fun GestureNavContent() {
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
+                        .background(if (isComposerRecording) RECORD_AREA_ACTIVE_COLOR else RECORD_AREA_COLOR)
                         .pointerInput(Unit) {
                             detectTapGestures(
                                 onPress = {
@@ -734,6 +749,7 @@ private fun GestureNavContent() {
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
+                        .background(CONFIRM_AREA_COLOR)
                         .gestureNavigation { event ->
                             when (event) {
                                 GestureEvent.SingleTap -> {
@@ -788,6 +804,7 @@ private fun GestureNavContent() {
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
+                        .background(if (isComposerRecording) RECORD_AREA_ACTIVE_COLOR else RECORD_AREA_COLOR)
                         .pointerInput(Unit) {
                             detectTapGestures(
                                 onPress = {
@@ -812,6 +829,7 @@ private fun GestureNavContent() {
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
+                        .background(CONFIRM_AREA_COLOR)
                         .gestureNavigation { event ->
                             when (event) {
                                 GestureEvent.SingleTap -> {
