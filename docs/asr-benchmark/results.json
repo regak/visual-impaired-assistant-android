@@ -1,0 +1,302 @@
+[
+  {
+    "clip": "clip_000.wav",
+    "reference": "Macho yangu yamefungwa",
+    "omnilingual": "macho yangu ya mefungwa",
+    "omnilingual_t": 1.3,
+    "whisper_tiny": "māchoyanguya mūkuya mūkuya mūku",
+    "whisper_tiny_t": 0.56,
+    "mms": "macho yangu yametie ngua",
+    "mms_t": 1.7
+  },
+  {
+    "clip": "clip_001.wav",
+    "reference": "utaona wamebadilisha kauli na sasa wataanza kumuunga mkono kwa hivyo",
+    "omnilingual": "utaona umebaadilisha kauli na sasa wataanza kumuunga mkono kwa hivyo",
+    "omnilingual_t": 2.68,
+    "whisper_tiny": "kawanomai bai bai di lixia kawanomai nasa saatang zaptumonga mkona p",
+    "whisper_tiny_t": 0.92,
+    "mms": "utaono umebadhilisha kauli na sasa wataanza kumuunga mkono kwa hivyo",
+    "mms_t": 3.41
+  },
+  {
+    "clip": "clip_002.wav",
+    "reference": "Wao ni chanzo tajiri cha viumbe hai",
+    "omnilingual": "mwao ni chanzwa tajiri cha viumbe hayo",
+    "omnilingual_t": 1.85,
+    "whisper_tiny": "Wa, nii ca'u ta'u ta'u dilih nii ca'u dilih nii",
+    "whisper_tiny_t": 0.65,
+    "mms": "wao ni chanzo tajiri cha viumbe hai",
+    "mms_t": 2.62
+  },
+  {
+    "clip": "clip_003.wav",
+    "reference": "Kwenye nchi nyingi duniani kulikuwa na habari nyingi Sana juu ya viumbe vya ajabu",
+    "omnilingual": "kwenye nchi nyingi duniani kulikuwa na habari nyingi sana juu ya viumbe vya ajabi",
+    "omnilingual_t": 2.43,
+    "whisper_tiny": "konea, konea, konea, konea, konea, konea, konea, konea, konea,",
+    "whisper_tiny_t": 0.87,
+    "mms": "kwenye nchi nyingi duniani kujikuwa na habari nyingi sana juu ya viumbe vya ajabu",
+    "mms_t": 3.64
+  },
+  {
+    "clip": "clip_004.wav",
+    "reference": "Maji ni uhai",
+    "omnilingual": "มجnuhi",
+    "omnilingual_t": 0.82,
+    "whisper_tiny": "Maji Nuhai",
+    "whisper_tiny_t": 0.22,
+    "mms": "maji ni yuhai",
+    "mms_t": 1.05
+  },
+  {
+    "clip": "clip_005.wav",
+    "reference": "aanze kuwa kama mfalme wa dunia hii lililoathiri sana majukumu yake",
+    "omnilingual": "naanze kuwa kama mfalme wadunia hili livyoadhiri sana natukule",
+    "omnilingual_t": 2.72,
+    "whisper_tiny": "i' mga'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u",
+    "whisper_tiny_t": 0.91,
+    "mms": "aanze kuwa kama mfalme wa dunia hili lilowadhiri sana majukumela",
+    "mms_t": 3.79
+  },
+  {
+    "clip": "clip_006.wav",
+    "reference": "kujiri ama zitajiri hapo baadaye",
+    "omnilingual": "kujiri amazitajiri hasebwadaya",
+    "omnilingual_t": 1.72,
+    "whisper_tiny": "\"o jiri amazita jiri kobana\"",
+    "whisper_tiny_t": 0.47,
+    "mms": "kujiri amazi zitajiri hako baadaye",
+    "mms_t": 2.07
+  },
+  {
+    "clip": "clip_007.wav",
+    "reference": "gharama ya kupunguza uchafuzi wa hewa ya kwanza ikiwa",
+    "omnilingual": "gharama ya kupungua uchafu wa hewa ya kwanza kiwa",
+    "omnilingual_t": 1.84,
+    "whisper_tiny": "gara maia kufrenburoi chafuroi hewa yapuan zekiwa",
+    "whisper_tiny_t": 0.56,
+    "mms": "gharama ya kupungua uchafu wa hewal ya kwanza ikiwa",
+    "mms_t": 2.48
+  },
+  {
+    "clip": "clip_008.wav",
+    "reference": "naye akasema kuwa hajapata taarifa rasmi kutoka serikali ya kigali",
+    "omnilingual": "naye akasema kuwa hajapata tarifa rashimiki poka serikali ya kidadi",
+    "omnilingual_t": 2.09,
+    "whisper_tiny": "naiya kasemakua jappata tarifara asmitutaka seri kari ati dari",
+    "whisper_tiny_t": 0.64,
+    "mms": "naye akasema kuwa hajapata taarifa rasmi kutoka serikali ya kigari",
+    "mms_t": 2.77
+  },
+  {
+    "clip": "clip_009.wav",
+    "reference": "woolner alikuwa kwenye dawati la chini",
+    "omnilingual": "kuona alikuwa konyela wati la chino",
+    "omnilingual_t": 1.41,
+    "whisper_tiny": "kowl naalikuwa konenawa tira china",
+    "whisper_tiny_t": 0.38,
+    "mms": "guona alikuwa kwenye lawati la chini",
+    "mms_t": 2.07
+  },
+  {
+    "clip": "clip_010.wav",
+    "reference": "Alishinda katika mashindano yale",
+    "omnilingual": "alishinda katika mashindano yalo",
+    "omnilingual_t": 1.28,
+    "whisper_tiny": "mga'a'a'a'a'a'a'a'a'",
+    "whisper_tiny_t": 0.47,
+    "mms": "alishinda katika mashindano ya alem",
+    "mms_t": 1.84
+  },
+  {
+    "clip": "clip_011.wav",
+    "reference": "wa uendeshaji wa serikali kwa sababu",
+    "omnilingual": "wauendeshaji wa serikali kwa sababu",
+    "omnilingual_t": 2.27,
+    "whisper_tiny": "Waiwain Veshajiwase Rikari Kwasadaba",
+    "whisper_tiny_t": 0.49,
+    "mms": "wa uembeshaji wa serikali kwa sababu",
+    "mms_t": 3.09
+  },
+  {
+    "clip": "clip_012.wav",
+    "reference": "Kuna vivutio kama vile mji mkongwe wa Zanzibar",
+    "omnilingual": "kuna vivutiwa kama vila mjia mkonga wa zazivali",
+    "omnilingual_t": 2.02,
+    "whisper_tiny": "i mga biai mga biai mga biai mga mga mga mga mga mga mga",
+    "whisper_tiny_t": 0.73,
+    "mms": "kuna vivutio kama vile mji wa mkongo wa zanzibari",
+    "mms_t": 2.87
+  },
+  {
+    "clip": "clip_013.wav",
+    "reference": "wa Morogoro na ilianzishwa mwaka wa elfu moja mia tisa sitini na nneIpo umbali",
+    "omnilingual": "wa morogoro na ivie ikianzishwa mwaka waitu moja n ya kisa skimi na mne ipo ubala",
+    "omnilingual_t": 3.51,
+    "whisper_tiny": "wamorogoro naidu, yangzisu moaka waidu mo temiatisasitirina naidu, muneipo baid",
+    "whisper_tiny_t": 0.99,
+    "mms": "wa morogoro na ilianzishwa mwaka wa elfu moa mia 9isa sni na 4ne ipoumbala",
+    "mms_t": 4.6
+  },
+  {
+    "clip": "clip_014.wav",
+    "reference": "kuchota maji kuokota kuni kukamua ngombe na kupikia familia thelathini na nneNgoma ya",
+    "omnilingual": "kuchota maji kuopota kuni kukamua ng'ombe na kupitia kwa miria dhyeravhini na nne ngoma yao",
+    "omnilingual_t": 2.89,
+    "whisper_tiny": "kutusota majiku oko taku i ni kuka muluangombena kutusia kami iyatera kimi na nero maja",
+    "whisper_tiny_t": 0.93,
+    "mms": "kuchota maji kuokota kwini kukamua ngombe na kupitia familia therathini na nne ngoma yao",
+    "mms_t": 4.26
+  },
+  {
+    "clip": "clip_015.wav",
+    "reference": "walitaka Kanisa la Kiafrika na kuchukia mambo ya Kilatini alikubali",
+    "omnilingual": "walitaka kanisa la kiapika na kucukua kutukia mambo ya kila tini alikibaya",
+    "omnilingual_t": 3.19,
+    "whisper_tiny": "waditara kane salakia fekana kuchikuwa kuchikuwa kuchikuwa mamiwa kuchikuwa jidacini alitubaan",
+    "whisper_tiny_t": 0.98,
+    "mms": "walitaka kanisa la kiafrika na kkuthukia mambo ya kilatini alikibali",
+    "mms_t": 4.31
+  },
+  {
+    "clip": "clip_016.wav",
+    "reference": "gesi zinazochafua na kemikali zingine kama mafuta",
+    "omnilingual": "gesi linazochafua kuna kelikali zingine kama mafuta",
+    "omnilingual_t": 2.44,
+    "whisper_tiny": "hi, hi, hi, hi, hi, hi, hi, hi, hi, hi, hi, hi, hi, hi, hi, hi, hi, hi,",
+    "whisper_tiny_t": 1.17,
+    "mms": "desi zinazochafua na kenikali zingine kama mafuta",
+    "mms_t": 3.31
+  },
+  {
+    "clip": "clip_017.wav",
+    "reference": "Ndio maana Karafuu hutumika kama kiungo cha chai",
+    "omnilingual": "mdiyo maana karafuu hukumeza kama kiogo chachani",
+    "omnilingual_t": 1.77,
+    "whisper_tiny": "Diamana Karafu hindi ka puka majiloga cichai",
+    "whisper_tiny_t": 0.49,
+    "mms": "ndio maana karafuu hutumika kama kiungo cha chayi",
+    "mms_t": 2.37
+  },
+  {
+    "clip": "clip_018.wav",
+    "reference": "ambapo asilimia hamsini na mbili ya wapiga kura",
+    "omnilingual": "ambapo asilimia hamfuni na mbili ya kwapijapura",
+    "omnilingual_t": 1.55,
+    "whisper_tiny": "angbabos edinia angisulin angbiri angkotu kapura",
+    "whisper_tiny_t": 0.5,
+    "mms": "ambapo wasilimia hamsini na mbili ya kuapiza pura",
+    "mms_t": 2.19
+  },
+  {
+    "clip": "clip_019.wav",
+    "reference": "aidha bunge hilo pia lilikubali uanzishwaji wa programu arobaini na tatu",
+    "omnilingual": "haiza bunge hilo lipia ililikubali wanjishwaji ka programu ya ribaini na tatu",
+    "omnilingual_t": 3.29,
+    "whisper_tiny": "kaya da punkai girao dikiyai girao dikiyai girao dikiyai dikiyai dikiyai dikiyai girao dikiyai g",
+    "whisper_tiny_t": 1.14,
+    "mms": "hali za bunge hilo ni pia lilikubali uandishwaji wa programu 43",
+    "mms_t": 4.92
+  },
+  {
+    "clip": "clip_020.wav",
+    "reference": "uchanguzi mkuu wa nchini thailand unataraji kufanyika",
+    "omnilingual": "ucangani uze mkuba ncenetaela ba taraje kupaneka",
+    "omnilingual_t": 2.32,
+    "whisper_tiny": "kawaii kawaii kawaii kawaii kawaii kawaii kawaii kawaii k",
+    "whisper_tiny_t": 0.76,
+    "mms": "uthanganuzi mkuuwa nchini tilan unataraji kufanyika",
+    "mms_t": 3.17
+  },
+  {
+    "clip": "clip_021.wav",
+    "reference": "elfu mbili na saba hangeweza kujulikana Hii ni kwa sababu wizi wa kura ulifanyika",
+    "omnilingual": "elfu mbili na saba hange weza kujurikana hii nikuwa sababu wizi wa kura ukifanyika",
+    "omnilingual_t": 3.74,
+    "whisper_tiny": "kawasaba bubisi wa kura ubipani",
+    "whisper_tiny_t": 0.59,
+    "mms": "elfu mbili na saba hangeweza kujulikana hii ni kwa sababu wizi wakura ulifanika",
+    "mms_t": 5.17
+  },
+  {
+    "clip": "clip_022.wav",
+    "reference": "kuwa na heshima kwa pande zote na kutokuelewana",
+    "omnilingual": "kuwa na hesima ko bande yote na kutkuelewa",
+    "omnilingual_t": 3.07,
+    "whisper_tiny": "kowanahe si mafi kowanahe si mafi kowanahe si mafi kowanahe si mafi kowan",
+    "whisper_tiny_t": 1.01,
+    "mms": "kuwa na heshima kwa pande zote na kutokuelewana",
+    "mms_t": 3.86
+  },
+  {
+    "clip": "clip_023.wav",
+    "reference": "benki inatakiwa kuhimili majanga ya kiuchumi",
+    "omnilingual": "bengi inatakiwa kuhimiri majanga ya viijuri",
+    "omnilingual_t": 1.4,
+    "whisper_tiny": "Thank you, Nathakiwa, Kuhilii, Majangayati, Juh",
+    "whisper_tiny_t": 0.52,
+    "mms": "benki inatakiwa kuhimiri mazanga ya viujuni",
+    "mms_t": 1.9
+  },
+  {
+    "clip": "clip_024.wav",
+    "reference": "mwinuko katika serengeti una urefu wa mita mia tisa",
+    "omnilingual": "mwinuka katika serengeti ya urefu wa mia mita 6ita",
+    "omnilingual_t": 2.78,
+    "whisper_tiny": "mūyinu ko kakakika se nengetu wa rafu ammiga o niita siga o mga rafu",
+    "whisper_tiny_t": 0.84,
+    "mms": "muinuko katika serengeti na urefu wa mia ita 6i 0",
+    "mms_t": 3.73
+  },
+  {
+    "clip": "clip_025.wav",
+    "reference": "Maji kutoka bombani yanaweza kutumika tu baada ya kuchemsha",
+    "omnilingual": "maji kutoka bombani yanaweza kutumika tuu baade items",
+    "omnilingual_t": 2.81,
+    "whisper_tiny": "mga'i kutaka bumbaniya nabezako kutuneta suba daer",
+    "whisper_tiny_t": 0.9,
+    "mms": "maji kutoka bombani yanaweza kutumika tuu baada ya nikichemshwa",
+    "mms_t": 3.91
+  },
+  {
+    "clip": "clip_026.wav",
+    "reference": "tunapokea taarifa za kifo cha Ruge kutokea Afrika kusini huku Rais Dokta Jombe Pombe",
+    "omnilingual": "tunakokea taarifa za kifo tahuge kutokea afrika kusini huko rahisi zakita jombe koa",
+    "omnilingual_t": 3.28,
+    "whisper_tiny": "nako kia tali fazati fazari, rukia, rukia fazari, rukia fazari, rukia fazari, rukia fazari, r",
+    "whisper_tiny_t": 1.09,
+    "mms": "tunapokea taarifa za kifwa cha gugen kutokea afrika kusini huko rais doktr. jombe ponba",
+    "mms_t": 4.5
+  },
+  {
+    "clip": "clip_027.wav",
+    "reference": "Wakwere wengi ni watawala yaani viongozi",
+    "omnilingual": "wakwere wengi ni watawara ya ni vyongovi",
+    "omnilingual_t": 1.91,
+    "whisper_tiny": "kakwaire wengewakawara yangigim bor.",
+    "whisper_tiny_t": 0.47,
+    "mms": "wakwere wengine ni watawala yaani viongozi",
+    "mms_t": 2.63
+  },
+  {
+    "clip": "clip_028.wav",
+    "reference": "jacob zuma alikataa kujiuzulu kwa muda",
+    "omnilingual": "jakwa busumaalikata kujiuzuru kwa muda",
+    "omnilingual_t": 1.44,
+    "whisper_tiny": "iqa besewemarii katakudiyo zubut pamurum",
+    "whisper_tiny_t": 0.49,
+    "mms": "yakob zuma rikatakujizuru kamura",
+    "mms_t": 2.04
+  },
+  {
+    "clip": "clip_029.wav",
+    "reference": "mashabiki wengi hapa katika ukanda",
+    "omnilingual": "mashabiki wengi hapa katika ukange",
+    "omnilingual_t": 1.28,
+    "whisper_tiny": "masebhi ki wainghi hapa kati kaup kaun",
+    "whisper_tiny_t": 0.43,
+    "mms": "mashabiki wengi hapa katika ukanda",
+    "mms_t": 1.73
+  }
+]

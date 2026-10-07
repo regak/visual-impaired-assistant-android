@@ -1,0 +1,147 @@
+sh: 1: blkid: not found
+Loading Omnilingual CTC 300M int8 (local, matches the app's current engine)...
+  loaded in 2.6 s
+Loading Whisper tiny (sherpa-onnx)...
+  loaded in 0.9 s
+Loading MMS-1B-all (Swahili adapter, int8)...
+  loaded in 5.7 s
+[1/30] ref='Macho yangu yamefungwa'
+    omni='macho yangu ya mefungwa' (1.3s)
+    whisper='māchoyanguya mūkuya mūkuya mūku' (0.56s)
+    mms='macho yangu yametie ngua' (1.7s)
+[2/30] ref='utaona wamebadilisha kauli na sasa wataanza kumuunga mkono kwa hivyo'
+    omni='utaona umebaadilisha kauli na sasa wataanza kumuunga mkono kwa hivyo' (2.68s)
+    whisper='kawanomai bai bai di lixia kawanomai nasa saatang zaptumonga mkona p' (0.92s)
+    mms='utaono umebadhilisha kauli na sasa wataanza kumuunga mkono kwa hivyo' (3.41s)
+[3/30] ref='Wao ni chanzo tajiri cha viumbe hai'
+    omni='mwao ni chanzwa tajiri cha viumbe hayo' (1.85s)
+    whisper="Wa, nii ca'u ta'u ta'u dilih nii ca'u dilih nii" (0.65s)
+    mms='wao ni chanzo tajiri cha viumbe hai' (2.62s)
+[4/30] ref='Kwenye nchi nyingi duniani kulikuwa na habari nyingi Sana juu ya viumbe vya ajabu'
+    omni='kwenye nchi nyingi duniani kulikuwa na habari nyingi sana juu ya viumbe vya ajabi' (2.43s)
+    whisper='konea, konea, konea, konea, konea, konea, konea, konea, konea,' (0.87s)
+    mms='kwenye nchi nyingi duniani kujikuwa na habari nyingi sana juu ya viumbe vya ajabu' (3.64s)
+[5/30] ref='Maji ni uhai'
+    omni='มجnuhi' (0.82s)
+    whisper='Maji Nuhai' (0.22s)
+    mms='maji ni yuhai' (1.05s)
+[6/30] ref='aanze kuwa kama mfalme wa dunia hii lililoathiri sana majukumu yake'
+    omni='naanze kuwa kama mfalme wadunia hili livyoadhiri sana natukule' (2.72s)
+    whisper="i' mga'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u" (0.91s)
+    mms='aanze kuwa kama mfalme wa dunia hili lilowadhiri sana majukumela' (3.79s)
+[7/30] ref='kujiri ama zitajiri hapo baadaye'
+    omni='kujiri amazitajiri hasebwadaya' (1.72s)
+    whisper='"o jiri amazita jiri kobana"' (0.47s)
+    mms='kujiri amazi zitajiri hako baadaye' (2.07s)
+[8/30] ref='gharama ya kupunguza uchafuzi wa hewa ya kwanza ikiwa'
+    omni='gharama ya kupungua uchafu wa hewa ya kwanza kiwa' (1.84s)
+    whisper='gara maia kufrenburoi chafuroi hewa yapuan zekiwa' (0.56s)
+    mms='gharama ya kupungua uchafu wa hewal ya kwanza ikiwa' (2.48s)
+[9/30] ref='naye akasema kuwa hajapata taarifa rasmi kutoka serikali ya kigali'
+    omni='naye akasema kuwa hajapata tarifa rashimiki poka serikali ya kidadi' (2.09s)
+    whisper='naiya kasemakua jappata tarifara asmitutaka seri kari ati dari' (0.64s)
+    mms='naye akasema kuwa hajapata taarifa rasmi kutoka serikali ya kigari' (2.77s)
+[10/30] ref='woolner alikuwa kwenye dawati la chini'
+    omni='kuona alikuwa konyela wati la chino' (1.41s)
+    whisper='kowl naalikuwa konenawa tira china' (0.38s)
+    mms='guona alikuwa kwenye lawati la chini' (2.07s)
+[11/30] ref='Alishinda katika mashindano yale'
+    omni='alishinda katika mashindano yalo' (1.28s)
+    whisper="mga'a'a'a'a'a'a'a'a'" (0.47s)
+    mms='alishinda katika mashindano ya alem' (1.84s)
+[12/30] ref='wa uendeshaji wa serikali kwa sababu'
+    omni='wauendeshaji wa serikali kwa sababu' (2.27s)
+    whisper='Waiwain Veshajiwase Rikari Kwasadaba' (0.49s)
+    mms='wa uembeshaji wa serikali kwa sababu' (3.09s)
+[13/30] ref='Kuna vivutio kama vile mji mkongwe wa Zanzibar'
+    omni='kuna vivutiwa kama vila mjia mkonga wa zazivali' (2.02s)
+    whisper='i mga biai mga biai mga biai mga mga mga mga mga mga mga' (0.73s)
+    mms='kuna vivutio kama vile mji wa mkongo wa zanzibari' (2.87s)
+[14/30] ref='wa Morogoro na ilianzishwa mwaka wa elfu moja mia tisa sitini na nneIpo umbali'
+    omni='wa morogoro na ivie ikianzishwa mwaka waitu moja n ya kisa skimi na mne ipo ubala' (3.51s)
+    whisper='wamorogoro naidu, yangzisu moaka waidu mo temiatisasitirina naidu, muneipo baid' (0.99s)
+    mms='wa morogoro na ilianzishwa mwaka wa elfu moa mia 9isa sni na 4ne ipoumbala' (4.6s)
+[15/30] ref='kuchota maji kuokota kuni kukamua ngombe na kupikia familia thelathini na nneNgoma ya'
+    omni="kuchota maji kuopota kuni kukamua ng'ombe na kupitia kwa miria dhyeravhini na nne ngoma yao" (2.89s)
+    whisper='kutusota majiku oko taku i ni kuka muluangombena kutusia kami iyatera kimi na nero maja' (0.93s)
+    mms='kuchota maji kuokota kwini kukamua ngombe na kupitia familia therathini na nne ngoma yao' (4.26s)
+[16/30] ref='walitaka Kanisa la Kiafrika na kuchukia mambo ya Kilatini alikubali'
+    omni='walitaka kanisa la kiapika na kucukua kutukia mambo ya kila tini alikibaya' (3.19s)
+    whisper='waditara kane salakia fekana kuchikuwa kuchikuwa kuchikuwa mamiwa kuchikuwa jidacini alitubaan' (0.98s)
+    mms='walitaka kanisa la kiafrika na kkuthukia mambo ya kilatini alikibali' (4.31s)
+[17/30] ref='gesi zinazochafua na kemikali zingine kama mafuta'
+    omni='gesi linazochafua kuna kelikali zingine kama mafuta' (2.44s)
+    whisper='hi, hi, hi, hi, hi, hi, hi, hi, hi, hi, hi, hi, hi, hi, hi, hi, hi, hi,' (1.17s)
+    mms='desi zinazochafua na kenikali zingine kama mafuta' (3.31s)
+[18/30] ref='Ndio maana Karafuu hutumika kama kiungo cha chai'
+    omni='mdiyo maana karafuu hukumeza kama kiogo chachani' (1.77s)
+    whisper='Diamana Karafu hindi ka puka majiloga cichai' (0.49s)
+    mms='ndio maana karafuu hutumika kama kiungo cha chayi' (2.37s)
+[19/30] ref='ambapo asilimia hamsini na mbili ya wapiga kura'
+    omni='ambapo asilimia hamfuni na mbili ya kwapijapura' (1.55s)
+    whisper='angbabos edinia angisulin angbiri angkotu kapura' (0.5s)
+    mms='ambapo wasilimia hamsini na mbili ya kuapiza pura' (2.19s)
+[20/30] ref='aidha bunge hilo pia lilikubali uanzishwaji wa programu arobaini na tatu'
+    omni='haiza bunge hilo lipia ililikubali wanjishwaji ka programu ya ribaini na tatu' (3.29s)
+    whisper='kaya da punkai girao dikiyai girao dikiyai girao dikiyai dikiyai dikiyai dikiyai girao dikiyai g' (1.14s)
+    mms='hali za bunge hilo ni pia lilikubali uandishwaji wa programu 43' (4.92s)
+[21/30] ref='uchanguzi mkuu wa nchini thailand unataraji kufanyika'
+    omni='ucangani uze mkuba ncenetaela ba taraje kupaneka' (2.32s)
+    whisper='kawaii kawaii kawaii kawaii kawaii kawaii kawaii kawaii k' (0.76s)
+    mms='uthanganuzi mkuuwa nchini tilan unataraji kufanyika' (3.17s)
+[22/30] ref='elfu mbili na saba hangeweza kujulikana Hii ni kwa sababu wizi wa kura ulifanyika'
+    omni='elfu mbili na saba hange weza kujurikana hii nikuwa sababu wizi wa kura ukifanyika' (3.74s)
+    whisper='kawasaba bubisi wa kura ubipani' (0.59s)
+    mms='elfu mbili na saba hangeweza kujulikana hii ni kwa sababu wizi wakura ulifanika' (5.17s)
+[23/30] ref='kuwa na heshima kwa pande zote na kutokuelewana'
+    omni='kuwa na hesima ko bande yote na kutkuelewa' (3.07s)
+    whisper='kowanahe si mafi kowanahe si mafi kowanahe si mafi kowanahe si mafi kowan' (1.01s)
+    mms='kuwa na heshima kwa pande zote na kutokuelewana' (3.86s)
+[24/30] ref='benki inatakiwa kuhimili majanga ya kiuchumi'
+    omni='bengi inatakiwa kuhimiri majanga ya viijuri' (1.4s)
+    whisper='Thank you, Nathakiwa, Kuhilii, Majangayati, Juh' (0.52s)
+    mms='benki inatakiwa kuhimiri mazanga ya viujuni' (1.9s)
+[25/30] ref='mwinuko katika serengeti una urefu wa mita mia tisa'
+    omni='mwinuka katika serengeti ya urefu wa mia mita 6ita' (2.78s)
+    whisper='mūyinu ko kakakika se nengetu wa rafu ammiga o niita siga o mga rafu' (0.84s)
+    mms='muinuko katika serengeti na urefu wa mia ita 6i 0' (3.73s)
+[26/30] ref='Maji kutoka bombani yanaweza kutumika tu baada ya kuchemsha'
+    omni='maji kutoka bombani yanaweza kutumika tuu baade items' (2.81s)
+    whisper="mga'i kutaka bumbaniya nabezako kutuneta suba daer" (0.9s)
+    mms='maji kutoka bombani yanaweza kutumika tuu baada ya nikichemshwa' (3.91s)
+[27/30] ref='tunapokea taarifa za kifo cha Ruge kutokea Afrika kusini huku Rais Dokta Jombe Pombe'
+    omni='tunakokea taarifa za kifo tahuge kutokea afrika kusini huko rahisi zakita jombe koa' (3.28s)
+    whisper='nako kia tali fazati fazari, rukia, rukia fazari, rukia fazari, rukia fazari, rukia fazari, r' (1.09s)
+    mms='tunapokea taarifa za kifwa cha gugen kutokea afrika kusini huko rais doktr. jombe ponba' (4.5s)
+[28/30] ref='Wakwere wengi ni watawala yaani viongozi'
+    omni='wakwere wengi ni watawara ya ni vyongovi' (1.91s)
+    whisper='kakwaire wengewakawara yangigim bor.' (0.47s)
+    mms='wakwere wengine ni watawala yaani viongozi' (2.63s)
+[29/30] ref='jacob zuma alikataa kujiuzulu kwa muda'
+    omni='jakwa busumaalikata kujiuzuru kwa muda' (1.44s)
+    whisper='iqa besewemarii katakudiyo zubut pamurum' (0.49s)
+    mms='yakob zuma rikatakujizuru kamura' (2.04s)
+[30/30] ref='mashabiki wengi hapa katika ukanda'
+    omni='mashabiki wengi hapa katika ukange' (1.28s)
+    whisper='masebhi ki wainghi hapa kati kaup kaun' (0.43s)
+    mms='mashabiki wengi hapa katika ukanda' (1.73s)
+
+=== omnilingual ===
+  N clips scored: 30 (errors: 0)
+  Mean WER: 0.5321
+  Mean CER: 0.1654
+  Mean inference time: 2.24s
+
+=== whisper_tiny ===
+  N clips scored: 30 (errors: 0)
+  Mean WER: 1.1588
+  Mean CER: 0.5685
+  Mean inference time: 0.71s
+
+=== mms ===
+  N clips scored: 30 (errors: 0)
+  Mean WER: 0.3272
+  Mean CER: 0.0983
+  Mean inference time: 3.07s
+
+Wrote per-clip results to /opt/data/cache/scratch/asr_bench/results.json
