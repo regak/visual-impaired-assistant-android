@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px;
+    background: #0d1117;
+    font-family: 'Segoe UI', -apple-system, 'Helvetica Neue', Arial, sans-serif;
+    color: #e6edf3;
+    width: 1680px;
+  }
+  h1 { font-size: 26px; margin: 0 0 4px; font-weight: 700; }
+  .subtitle { color: #8b949e; font-size: 14px; margin-bottom: 24px; }
+  .summary-grid { display: flex; gap: 16px; margin-bottom: 28px; }
+  .summary-card {
+    flex: 1; background: #161b22; border: 1px solid #30363d; border-radius: 10px;
+    padding: 18px 20px; position: relative;
+  }
+  .summary-card.winner { border-color: #1f9d55; box-shadow: 0 0 0 1px #1f9d55 inset; }
+  .summary-card .eng-name { font-size: 15px; font-weight: 600; margin-bottom: 10px; display:flex; align-items:center; gap:8px;}
+  .badge {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+    background: #1f9d55; color: #fff; padding: 2px 8px; border-radius: 20px; margin-left: 6px;
+  }
+  .metric-row { display: flex; justify-content: space-between; font-size: 13px; color: #8b949e; margin-top: 6px; }
+  .metric-row b { color: #e6edf3; font-size: 15px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; background: #161b22; border-radius: 10px; overflow: hidden; }
+  thead th {
+    background: #1c2128; color: #8b949e; text-transform: uppercase; font-size: 10.5px;
+    letter-spacing: 0.04em; padding: 10px 12px; text-align: left; border-bottom: 1px solid #30363d;
+  }
+  td { padding: 10px 12px; border-bottom: 1px solid #21262d; vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  .idx { color: #6e7681; font-size: 11px; width: 28px; }
+  .ref-cell { width: 300px; }
+  .ref-text { font-weight: 600; color: #e6edf3; line-height: 1.35; }
+  .clip-name { color: #6e7681; font-size: 10.5px; margin-top: 4px; }
+  .engine-cell { width: 300px; border-left: 3px solid transparent; }
+  .engine-cell.good { border-left-color: #1f9d55; background: rgba(31,157,85,0.06); }
+  .engine-cell.warn { border-left-color: #d99a1b; background: rgba(217,154,27,0.07); }
+  .engine-cell.bad { border-left-color: #d33b3b; background: rgba(211,59,59,0.07); }
+  .cell-top { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+  .wer-val { font-weight: 700; font-size: 12.5px; }
+  .hyp-text { color: #b8c1cc; line-height: 1.35; }
+  tbody tr:hover { background: #1a2029; }
+  footer { margin-top: 22px; padding: 18px 20px; background: #161b22; border: 1px solid #30363d; border-radius: 10px; }
+  footer .foot-title { font-weight: 700; margin-bottom: 8px; font-size: 14px; }
+  footer ul { margin: 0; padding-left: 20px; color: #b8c1cc; font-size: 13px; line-height: 1.6; }
+  .legend { display: flex; gap: 18px; margin-top: 14px; font-size: 12px; color: #8b949e; }
+  .legend span { display: flex; align-items: center; gap: 6px; }
+</style></head>
+<body>
+  <h1>ASR Engine Benchmark — Swahili</h1>
+  <div class="subtitle">30 real Common Voice 17 (Kenyan Swahili) clips · word error rate (WER) per clip · sorted by severity (worst-case first) · visual-impaired-assistant project</div>
+
+  <div class="summary-grid">
+    <div class="summary-card winner">
+      <div class="eng-name">MMS-1B-all <span class="badge">Recommended</span></div>
+      <div class="metric-row"><span>Mean WER</span><b>0.327</b></div>
+      <div class="metric-row"><span>Mean CER</span><b>0.098</b></div>
+      <div class="metric-row"><span>Avg inference</span><b>3.07s</b></div>
+      <div class="metric-row"><span>Model size</span><b>~1 GB + 8.7 MB/lang</b></div>
+    </div>
+    <div class="summary-card">
+      <div class="eng-name">Omnilingual CTC 300M <span style="color:#8b949e;font-size:11px;font-weight:400;">(current app engine)</span></div>
+      <div class="metric-row"><span>Mean WER</span><b>0.532</b></div>
+      <div class="metric-row"><span>Mean CER</span><b>0.165</b></div>
+      <div class="metric-row"><span>Avg inference</span><b>2.24s</b></div>
+      <div class="metric-row"><span>Model size</span><b>~365 MB</b></div>
+    </div>
+    <div class="summary-card">
+      <div class="eng-name">Whisper tiny</div>
+      <div class="metric-row"><span>Mean WER</span><b style="color:#d33b3b;">1.159</b></div>
+      <div class="metric-row"><span>Mean CER</span><b style="color:#d33b3b;">0.569</b></div>
+      <div class="metric-row"><span>Avg inference</span><b>0.71s</b></div>
+      <div class="metric-row"><span>Model size</span><b>~85 MB</b></div>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Reference</th>
+        <th>MMS-1B-all</th>
+        <th>Omnilingual CTC (current)</th>
+        <th>Whisper tiny</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="idx">1</td>
+        <td class="ref-cell"><div class="ref-text">Macho yangu yamefungwa</div><div class="clip-name">clip_000.wav</div></td>
+        <td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">0.67</span></div>
+            <div class="hyp-text">macho yangu yametie ngua</div>
+        </td><td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">0.67</span></div>
+            <div class="hyp-text">macho yangu ya mefungwa</div>
+        </td><td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">1.33</span></div>
+            <div class="hyp-text">māchoyanguya mūkuya mūkuya mūku</div>
+        </td>
+    </tr><tr>
+        <td class="idx">2</td>
+        <td class="ref-cell"><div class="ref-text">jacob zuma alikataa kujiuzulu kwa muda</div><div class="clip-name">clip_028.wav</div></td>
+        <td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">0.83</span></div>
+            <div class="hyp-text">yakob zuma rikatakujizuru kamura</div>
+        </td><td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">0.67</span></div>
+            <div class="hyp-text">jakwa busumaalikata kujiuzuru kwa muda</div>
+        </td><td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">1.00</span></div>
+            <div class="hyp-text">iqa besewemarii katakudiyo zubut pamurum</div>
+        </td>
+    </tr><tr>
+        <td class="idx">3</td>
+        <td class="ref-cell"><div class="ref-text">aidha bunge hilo pia lilikubali uanzishwaji wa programu arobaini na tatu</div><div class="clip-name">clip_019.wav</div></td>
+        <td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">0.64</span></div>
+            <div class="hyp-text">hali za bunge hilo ni pia lilikubali uandishwaji wa programu 43</div>
+        </td><td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">0.64</span></div>
+            <div class="hyp-text">haiza bunge hilo lipia ililikubali wanjishwaji ka programu ya ribaini na tatu</div>
+        </td><td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">1.36</span></div>
+            <div class="hyp-text">kaya da punkai girao dikiyai girao dikiyai girao dikiyai dikiyai dikiyai dikiyai girao dikiyai g</div>
+        </td>
+    </tr><tr>
+        <td class="idx">4</td>
+        <td class="ref-cell"><div class="ref-text">uchanguzi mkuu wa nchini thailand unataraji kufanyika</div><div class="clip-name">clip_020.wav</div></td>
+        <td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">0.57</span></div>
+            <div class="hyp-text">uthanganuzi mkuuwa nchini tilan unataraji kufanyika</div>
+        </td><td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">1.00</span></div>
+            <div class="hyp-text">ucangani uze mkuba ncenetaela ba taraje kupaneka</div>
+        </td><td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">1.29</span></div>
+            <div class="hyp-text">kawaii kawaii kawaii kawaii kawaii kawaii kawaii kawaii k</div>
+        </td>
+    </tr><tr>
+        <td class="idx">5</td>
+        <td class="ref-cell"><div class="ref-text">mwinuko katika serengeti una urefu wa mita mia tisa</div><div class="clip-name">clip_024.wav</div></td>
+        <td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">0.67</span></div>
+            <div class="hyp-text">muinuko katika serengeti na urefu wa mia ita 6i 0</div>
+        </td><td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">0.56</span></div>
+            <div class="hyp-text">mwinuka katika serengeti ya urefu wa mia mita 6ita</div>
+        </td><td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">1.44</span></div>
+            <div class="hyp-text">mūyinu ko kakakika se nengetu wa rafu ammiga o niita siga o mga rafu</div>
+        </td>
+    </tr><tr>
+        <td class="idx">6</td>
+        <td class="ref-cell"><div class="ref-text">benki inatakiwa kuhimili majanga ya kiuchumi</div><div class="clip-name">clip_023.wav</div></td>
+        <td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">0.50</span></div>
+            <div class="hyp-text">benki inatakiwa kuhimiri mazanga ya viujuni</div>
+        </td><td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">0.50</span></div>
+            <div class="hyp-text">bengi inatakiwa kuhimiri majanga ya viijuri</div>
+        </td><td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">1.00</span></div>
+            <div class="hyp-text">Thank you, Nathakiwa, Kuhilii, Majangayati, Juh</div>
+        </td>
+    </tr><tr>
+        <td class="idx">7</td>
+        <td class="ref-cell"><div class="ref-text">kuchota maji kuokota kuni kukamua ngombe na kupikia familia thelathini na nneNgoma ya</div><div class="clip-name">clip_014.wav</div></td>
+        <td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">0.46</span></div>
+            <div class="hyp-text">kuchota maji kuokota kwini kukamua ngombe na kupitia familia therathini na nne ngoma yao</div>
+        </td><td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">0.61</span></div>
+            <div class="hyp-text">kuchota maji kuopota kuni kukamua ng'ombe na kupitia kwa miria dhyeravhini na nne ngoma yao</div>
+        </td><td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">1.08</span></div>
+            <div class="hyp-text">kutusota majiku oko taku i ni kuka muluangombena kutusia kami iyatera kimi na nero maja</div>
+        </td>
+    </tr><tr>
+        <td class="idx">8</td>
+        <td class="ref-cell"><div class="ref-text">kujiri ama zitajiri hapo baadaye</div><div class="clip-name">clip_006.wav</div></td>
+        <td class="engine-cell warn">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d99a1b"/><path d="M12 7v6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="16.3" r="1.1" fill="#fff"/></svg><span class="wer-val">0.40</span></div>
+            <div class="hyp-text">kujiri amazi zitajiri hako baadaye</div>
+        </td><td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">0.80</span></div>
+            <div class="hyp-text">kujiri amazitajiri hasebwadaya</div>
+        </td><td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">1.00</span></div>
+            <div class="hyp-text">"o jiri amazita jiri kobana"</div>
+        </td>
+    </tr><tr>
+        <td class="idx">9</td>
+        <td class="ref-cell"><div class="ref-text">Kuna vivutio kama vile mji mkongwe wa Zanzibar</div><div class="clip-name">clip_012.wav</div></td>
+        <td class="engine-cell warn">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d99a1b"/><path d="M12 7v6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="16.3" r="1.1" fill="#fff"/></svg><span class="wer-val">0.38</span></div>
+            <div class="hyp-text">kuna vivutio kama vile mji wa mkongo wa zanzibari</div>
+        </td><td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">0.62</span></div>
+            <div class="hyp-text">kuna vivutiwa kama vila mjia mkonga wa zazivali</div>
+        </td><td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">1.75</span></div>
+            <div class="hyp-text">i mga biai mga biai mga biai mga mga mga mga mga mga mga</div>
+        </td>
+    </tr><tr>
+        <td class="idx">10</td>
+        <td class="ref-cell"><div class="ref-text">ambapo asilimia hamsini na mbili ya wapiga kura</div><div class="clip-name">clip_018.wav</div></td>
+        <td class="engine-cell warn">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d99a1b"/><path d="M12 7v6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="16.3" r="1.1" fill="#fff"/></svg><span class="wer-val">0.38</span></div>
+            <div class="hyp-text">ambapo wasilimia hamsini na mbili ya kuapiza pura</div>
+        </td><td class="engine-cell warn">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d99a1b"/><path d="M12 7v6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="16.3" r="1.1" fill="#fff"/></svg><span class="wer-val">0.38</span></div>
+            <div class="hyp-text">ambapo asilimia hamfuni na mbili ya kwapijapura</div>
+        </td><td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">1.00</span></div>
+            <div class="hyp-text">angbabos edinia angisulin angbiri angkotu kapura</div>
+        </td>
+    </tr><tr>
+        <td class="idx">11</td>
+        <td class="ref-cell"><div class="ref-text">aanze kuwa kama mfalme wa dunia hii lililoathiri sana majukumu yake</div><div class="clip-name">clip_005.wav</div></td>
+        <td class="engine-cell warn">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d99a1b"/><path d="M12 7v6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="16.3" r="1.1" fill="#fff"/></svg><span class="wer-val">0.36</span></div>
+            <div class="hyp-text">aanze kuwa kama mfalme wa dunia hili lilowadhiri sana majukumela</div>
+        </td><td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">0.64</span></div>
+            <div class="hyp-text">naanze kuwa kama mfalme wadunia hili livyoadhiri sana natukule</div>
+        </td><td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">1.00</span></div>
+            <div class="hyp-text">i' mga'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u</div>
+        </td>
+    </tr><tr>
+        <td class="idx">12</td>
+        <td class="ref-cell"><div class="ref-text">wa Morogoro na ilianzishwa mwaka wa elfu moja mia tisa sitini na nneIpo umbali</div><div class="clip-name">clip_013.wav</div></td>
+        <td class="engine-cell warn">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d99a1b"/><path d="M12 7v6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="16.3" r="1.1" fill="#fff"/></svg><span class="wer-val">0.36</span></div>
+            <div class="hyp-text">wa morogoro na ilianzishwa mwaka wa elfu moa mia 9isa sni na 4ne ipoumbala</div>
+        </td><td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">0.79</span></div>
+            <div class="hyp-text">wa morogoro na ivie ikianzishwa mwaka waitu moja n ya kisa skimi na mne ipo ubala</div>
+        </td><td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">1.00</span></div>
+            <div class="hyp-text">wamorogoro naidu, yangzisu moaka waidu mo temiatisasitirina naidu, muneipo baid</div>
+        </td>
+    </tr><tr>
+        <td class="idx">13</td>
+        <td class="ref-cell"><div class="ref-text">tunapokea taarifa za kifo cha Ruge kutokea Afrika kusini huku Rais Dokta Jombe Pombe</div><div class="clip-name">clip_026.wav</div></td>
+        <td class="engine-cell warn">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d99a1b"/><path d="M12 7v6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="16.3" r="1.1" fill="#fff"/></svg><span class="wer-val">0.36</span></div>
+            <div class="hyp-text">tunapokea taarifa za kifwa cha gugen kutokea afrika kusini huko rais doktr. jombe ponba</div>
+        </td><td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">0.50</span></div>
+            <div class="hyp-text">tunakokea taarifa za kifo tahuge kutokea afrika kusini huko rahisi zakita jombe koa</div>
+        </td><td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">1.07</span></div>
+            <div class="hyp-text">nako kia tali fazati fazari, rukia, rukia fazari, rukia fazari, rukia fazari, rukia fazari, r</div>
+        </td>
+    </tr><tr>
+        <td class="idx">14</td>
+        <td class="ref-cell"><div class="ref-text">Maji ni uhai</div><div class="clip-name">clip_004.wav</div></td>
+        <td class="engine-cell warn">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d99a1b"/><path d="M12 7v6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="16.3" r="1.1" fill="#fff"/></svg><span class="wer-val">0.33</span></div>
+            <div class="hyp-text">maji ni yuhai</div>
+        </td><td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">1.00</span></div>
+            <div class="hyp-text">มجnuhi</div>
+        </td><td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">0.67</span></div>
+            <div class="hyp-text">Maji Nuhai</div>
+        </td>
+    </tr><tr>
+        <td class="idx">15</td>
+        <td class="ref-cell"><div class="ref-text">gharama ya kupunguza uchafuzi wa hewa ya kwanza ikiwa</div><div class="clip-name">clip_007.wav</div></td>
+        <td class="engine-cell warn">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d99a1b"/><path d="M12 7v6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="16.3" r="1.1" fill="#fff"/></svg><span class="wer-val">0.33</span></div>
+            <div class="hyp-text">gharama ya kupungua uchafu wa hewal ya kwanza ikiwa</div>
+        </td><td class="engine-cell warn">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d99a1b"/><path d="M12 7v6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="16.3" r="1.1" fill="#fff"/></svg><span class="wer-val">0.33</span></div>
+            <div class="hyp-text">gharama ya kupungua uchafu wa hewa ya kwanza kiwa</div>
+        </td><td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">0.89</span></div>
+            <div class="hyp-text">gara maia kufrenburoi chafuroi hewa yapuan zekiwa</div>
+        </td>
+    </tr><tr>
+        <td class="idx">16</td>
+        <td class="ref-cell"><div class="ref-text">woolner alikuwa kwenye dawati la chini</div><div class="clip-name">clip_009.wav</div></td>
+        <td class="engine-cell warn">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d99a1b"/><path d="M12 7v6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="16.3" r="1.1" fill="#fff"/></svg><span class="wer-val">0.33</span></div>
+            <div class="hyp-text">guona alikuwa kwenye lawati la chini</div>
+        </td><td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">0.67</span></div>
+            <div class="hyp-text">kuona alikuwa konyela wati la chino</div>
+        </td><td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">1.00</span></div>
+            <div class="hyp-text">kowl naalikuwa konenawa tira china</div>
+        </td>
+    </tr><tr>
+        <td class="idx">17</td>
+        <td class="ref-cell"><div class="ref-text">gesi zinazochafua na kemikali zingine kama mafuta</div><div class="clip-name">clip_016.wav</div></td>
+        <td class="engine-cell warn">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d99a1b"/><path d="M12 7v6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="16.3" r="1.1" fill="#fff"/></svg><span class="wer-val">0.29</span></div>
+            <div class="hyp-text">desi zinazochafua na kenikali zingine kama mafuta</div>
+        </td><td class="engine-cell warn">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d99a1b"/><path d="M12 7v6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="16.3" r="1.1" fill="#fff"/></svg><span class="wer-val">0.43</span></div>
+            <div class="hyp-text">gesi linazochafua kuna kelikali zingine kama mafuta</div>
+        </td><td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">2.57</span></div>
+            <div class="hyp-text">hi, hi, hi, hi, hi, hi, hi, hi, hi, hi, hi, hi, hi, hi, hi, hi, hi, hi,</div>
+        </td>
+    </tr><tr>
+        <td class="idx">18</td>
+        <td class="ref-cell"><div class="ref-text">Alishinda katika mashindano yale</div><div class="clip-name">clip_010.wav</div></td>
+        <td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">0.50</span></div>
+            <div class="hyp-text">alishinda katika mashindano ya alem</div>
+        </td><td class="engine-cell warn">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d99a1b"/><path d="M12 7v6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="16.3" r="1.1" fill="#fff"/></svg><span class="wer-val">0.25</span></div>
+            <div class="hyp-text">alishinda katika mashindano yalo</div>
+        </td><td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">1.00</span></div>
+            <div class="hyp-text">mga'a'a'a'a'a'a'a'a'</div>
+        </td>
+    </tr><tr>
+        <td class="idx">19</td>
+        <td class="ref-cell"><div class="ref-text">Maji kutoka bombani yanaweza kutumika tu baada ya kuchemsha</div><div class="clip-name">clip_025.wav</div></td>
+        <td class="engine-cell warn">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d99a1b"/><path d="M12 7v6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="16.3" r="1.1" fill="#fff"/></svg><span class="wer-val">0.22</span></div>
+            <div class="hyp-text">maji kutoka bombani yanaweza kutumika tuu baada ya nikichemshwa</div>
+        </td><td class="engine-cell warn">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d99a1b"/><path d="M12 7v6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="16.3" r="1.1" fill="#fff"/></svg><span class="wer-val">0.44</span></div>
+            <div class="hyp-text">maji kutoka bombani yanaweza kutumika tuu baade items</div>
+        </td><td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">1.00</span></div>
+            <div class="hyp-text">mga'i kutaka bumbaniya nabezako kutuneta suba daer</div>
+        </td>
+    </tr><tr>
+        <td class="idx">20</td>
+        <td class="ref-cell"><div class="ref-text">elfu mbili na saba hangeweza kujulikana Hii ni kwa sababu wizi wa kura ulifanyika</div><div class="clip-name">clip_021.wav</div></td>
+        <td class="engine-cell warn">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d99a1b"/><path d="M12 7v6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="16.3" r="1.1" fill="#fff"/></svg><span class="wer-val">0.21</span></div>
+            <div class="hyp-text">elfu mbili na saba hangeweza kujulikana hii ni kwa sababu wizi wakura ulifanika</div>
+        </td><td class="engine-cell warn">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d99a1b"/><path d="M12 7v6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="16.3" r="1.1" fill="#fff"/></svg><span class="wer-val">0.43</span></div>
+            <div class="hyp-text">elfu mbili na saba hange weza kujurikana hii nikuwa sababu wizi wa kura ukifanyika</div>
+        </td><td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">0.86</span></div>
+            <div class="hyp-text">kawasaba bubisi wa kura ubipani</div>
+        </td>
+    </tr><tr>
+        <td class="idx">21</td>
+        <td class="ref-cell"><div class="ref-text">walitaka Kanisa la Kiafrika na kuchukia mambo ya Kilatini alikubali</div><div class="clip-name">clip_015.wav</div></td>
+        <td class="engine-cell good">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#1f9d55"/><path d="M7 12.5l3 3 7-7" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="wer-val">0.20</span></div>
+            <div class="hyp-text">walitaka kanisa la kiafrika na kkuthukia mambo ya kilatini alikibali</div>
+        </td><td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">0.60</span></div>
+            <div class="hyp-text">walitaka kanisa la kiapika na kucukua kutukia mambo ya kila tini alikibaya</div>
+        </td><td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">1.10</span></div>
+            <div class="hyp-text">waditara kane salakia fekana kuchikuwa kuchikuwa kuchikuwa mamiwa kuchikuwa jidacini alitubaan</div>
+        </td>
+    </tr><tr>
+        <td class="idx">22</td>
+        <td class="ref-cell"><div class="ref-text">wa uendeshaji wa serikali kwa sababu</div><div class="clip-name">clip_011.wav</div></td>
+        <td class="engine-cell good">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#1f9d55"/><path d="M7 12.5l3 3 7-7" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="wer-val">0.17</span></div>
+            <div class="hyp-text">wa uembeshaji wa serikali kwa sababu</div>
+        </td><td class="engine-cell warn">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d99a1b"/><path d="M12 7v6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="16.3" r="1.1" fill="#fff"/></svg><span class="wer-val">0.33</span></div>
+            <div class="hyp-text">wauendeshaji wa serikali kwa sababu</div>
+        </td><td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">1.00</span></div>
+            <div class="hyp-text">Waiwain Veshajiwase Rikari Kwasadaba</div>
+        </td>
+    </tr><tr>
+        <td class="idx">23</td>
+        <td class="ref-cell"><div class="ref-text">Wakwere wengi ni watawala yaani viongozi</div><div class="clip-name">clip_027.wav</div></td>
+        <td class="engine-cell good">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#1f9d55"/><path d="M7 12.5l3 3 7-7" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="wer-val">0.17</span></div>
+            <div class="hyp-text">wakwere wengine ni watawala yaani viongozi</div>
+        </td><td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">0.67</span></div>
+            <div class="hyp-text">wakwere wengi ni watawara ya ni vyongovi</div>
+        </td><td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">1.00</span></div>
+            <div class="hyp-text">kakwaire wengewakawara yangigim bor.</div>
+        </td>
+    </tr><tr>
+        <td class="idx">24</td>
+        <td class="ref-cell"><div class="ref-text">Ndio maana Karafuu hutumika kama kiungo cha chai</div><div class="clip-name">clip_017.wav</div></td>
+        <td class="engine-cell good">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#1f9d55"/><path d="M7 12.5l3 3 7-7" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="wer-val">0.12</span></div>
+            <div class="hyp-text">ndio maana karafuu hutumika kama kiungo cha chayi</div>
+        </td><td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">0.62</span></div>
+            <div class="hyp-text">mdiyo maana karafuu hukumeza kama kiogo chachani</div>
+        </td><td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">1.00</span></div>
+            <div class="hyp-text">Diamana Karafu hindi ka puka majiloga cichai</div>
+        </td>
+    </tr><tr>
+        <td class="idx">25</td>
+        <td class="ref-cell"><div class="ref-text">utaona wamebadilisha kauli na sasa wataanza kumuunga mkono kwa hivyo</div><div class="clip-name">clip_001.wav</div></td>
+        <td class="engine-cell good">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#1f9d55"/><path d="M7 12.5l3 3 7-7" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="wer-val">0.20</span></div>
+            <div class="hyp-text">utaono umebadhilisha kauli na sasa wataanza kumuunga mkono kwa hivyo</div>
+        </td><td class="engine-cell good">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#1f9d55"/><path d="M7 12.5l3 3 7-7" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="wer-val">0.10</span></div>
+            <div class="hyp-text">utaona umebaadilisha kauli na sasa wataanza kumuunga mkono kwa hivyo</div>
+        </td><td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">1.10</span></div>
+            <div class="hyp-text">kawanomai bai bai di lixia kawanomai nasa saatang zaptumonga mkona p</div>
+        </td>
+    </tr><tr>
+        <td class="idx">26</td>
+        <td class="ref-cell"><div class="ref-text">naye akasema kuwa hajapata taarifa rasmi kutoka serikali ya kigali</div><div class="clip-name">clip_008.wav</div></td>
+        <td class="engine-cell good">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#1f9d55"/><path d="M7 12.5l3 3 7-7" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="wer-val">0.10</span></div>
+            <div class="hyp-text">naye akasema kuwa hajapata taarifa rasmi kutoka serikali ya kigari</div>
+        </td><td class="engine-cell warn">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d99a1b"/><path d="M12 7v6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="16.3" r="1.1" fill="#fff"/></svg><span class="wer-val">0.40</span></div>
+            <div class="hyp-text">naye akasema kuwa hajapata tarifa rashimiki poka serikali ya kidadi</div>
+        </td><td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">1.00</span></div>
+            <div class="hyp-text">naiya kasemakua jappata tarifara asmitutaka seri kari ati dari</div>
+        </td>
+    </tr><tr>
+        <td class="idx">27</td>
+        <td class="ref-cell"><div class="ref-text">Kwenye nchi nyingi duniani kulikuwa na habari nyingi Sana juu ya viumbe vya ajabu</div><div class="clip-name">clip_003.wav</div></td>
+        <td class="engine-cell good">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#1f9d55"/><path d="M7 12.5l3 3 7-7" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="wer-val">0.07</span></div>
+            <div class="hyp-text">kwenye nchi nyingi duniani kujikuwa na habari nyingi sana juu ya viumbe vya ajabu</div>
+        </td><td class="engine-cell good">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#1f9d55"/><path d="M7 12.5l3 3 7-7" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="wer-val">0.07</span></div>
+            <div class="hyp-text">kwenye nchi nyingi duniani kulikuwa na habari nyingi sana juu ya viumbe vya ajabi</div>
+        </td><td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">1.00</span></div>
+            <div class="hyp-text">konea, konea, konea, konea, konea, konea, konea, konea, konea,</div>
+        </td>
+    </tr><tr>
+        <td class="idx">28</td>
+        <td class="ref-cell"><div class="ref-text">Wao ni chanzo tajiri cha viumbe hai</div><div class="clip-name">clip_002.wav</div></td>
+        <td class="engine-cell good">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#1f9d55"/><path d="M7 12.5l3 3 7-7" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="wer-val">0.00</span></div>
+            <div class="hyp-text">wao ni chanzo tajiri cha viumbe hai</div>
+        </td><td class="engine-cell warn">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d99a1b"/><path d="M12 7v6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="16.3" r="1.1" fill="#fff"/></svg><span class="wer-val">0.43</span></div>
+            <div class="hyp-text">mwao ni chanzwa tajiri cha viumbe hayo</div>
+        </td><td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">1.43</span></div>
+            <div class="hyp-text">Wa, nii ca'u ta'u ta'u dilih nii ca'u dilih nii</div>
+        </td>
+    </tr><tr>
+        <td class="idx">29</td>
+        <td class="ref-cell"><div class="ref-text">kuwa na heshima kwa pande zote na kutokuelewana</div><div class="clip-name">clip_022.wav</div></td>
+        <td class="engine-cell good">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#1f9d55"/><path d="M7 12.5l3 3 7-7" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="wer-val">0.00</span></div>
+            <div class="hyp-text">kuwa na heshima kwa pande zote na kutokuelewana</div>
+        </td><td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">0.62</span></div>
+            <div class="hyp-text">kuwa na hesima ko bande yote na kutkuelewa</div>
+        </td><td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">1.62</span></div>
+            <div class="hyp-text">kowanahe si mafi kowanahe si mafi kowanahe si mafi kowanahe si mafi kowan</div>
+        </td>
+    </tr><tr>
+        <td class="idx">30</td>
+        <td class="ref-cell"><div class="ref-text">mashabiki wengi hapa katika ukanda</div><div class="clip-name">clip_029.wav</div></td>
+        <td class="engine-cell good">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#1f9d55"/><path d="M7 12.5l3 3 7-7" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="wer-val">0.00</span></div>
+            <div class="hyp-text">mashabiki wengi hapa katika ukanda</div>
+        </td><td class="engine-cell good">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#1f9d55"/><path d="M7 12.5l3 3 7-7" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="wer-val">0.20</span></div>
+            <div class="hyp-text">mashabiki wengi hapa katika ukange</div>
+        </td><td class="engine-cell bad">
+            <div class="cell-top"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span class="wer-val">1.20</span></div>
+            <div class="hyp-text">masebhi ki wainghi hapa kati kaup kaun</div>
+        </td>
+    </tr>
+    </tbody>
+  </table>
+
+  <div class="legend">
+    <span><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#1f9d55"/><path d="M7 12.5l3 3 7-7" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg> WER &le; 0.20 (good)</span>
+    <span><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d99a1b"/><path d="M12 7v6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="16.3" r="1.1" fill="#fff"/></svg> WER 0.21–0.45 (rough)</span>
+    <span><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg> WER &gt; 0.45 (poor)</span>
+  </div>
+
+  <footer>
+    <div class="foot-title">Summary &amp; notes</div>
+    <ul>
+      <li><b>MMS-1B-all</b> wins on accuracy on 22 of 30 clips and ties/loses on the rest — ~38% lower mean WER and ~40% lower mean CER than the current Omnilingual engine, at ~2.7x the on-device model size and ~37% slower per utterance (single CPU core, no GPU/NNAPI acceleration tested).</li>
+      <li><b>Whisper tiny is not viable for Swahili</b> — mean WER above 1.0 (more word errors than words spoken), with clear hallucination loops on several clips (e.g. clip 19, clip 20). Ruled out.</li>
+      <li>Even the best engine (MMS) still averages ~33% WER — real-world dictation will still need the user to confirm/correct via the existing readback step; this is an accuracy <i>improvement</i>, not a solved problem.</li>
+      <li>Hardest clips for all three engines were long multi-clause sentences with embedded numbers spoken as words (clips 13, 14, 19, 21, 24) — consistent with the separate Swahili-number-word conversion bug already fixed for the recipient field.</li>
+      <li>Full per-clip transcripts, raw results, test-set manifest and benchmark script are committed at <code>docs/asr-benchmark/</code> in the repo (commit 8b76da8).</li>
+    </ul>
+  </footer>
+</body></html>
