@@ -253,6 +253,21 @@ private val RECORD_AREA_COLOR = Color(0xFFFFE0B2) // pale amber
 private val RECORD_AREA_ACTIVE_COLOR = Color(0xFFFFB74D) // deeper amber while actively listening
 private val CONFIRM_AREA_COLOR = Color(0xFFBBDEFB) // pale blue
 
+/**
+ * "Andika ujumbe" entry/re-entry prompts (PLAN.md Phase 4 — explicit
+ * user-revised wording, verbatim): describes BOTH halves of the screen
+ * in one combined instruction — where to hold (top half) and where to
+ * confirm/cancel (bottom half) — rather than the shorter original
+ * prompt that only mentioned holding and left the user to discover the
+ * confirm/cancel area on their own.
+ */
+private const val ANDIKA_UJUMBE_RECIPIENT_PROMPT_SW =
+    "Shikilia kitufe na useme jina au namba ya mpokeaji kisha achia kwenye eneo ya nusu ya juu ya simu. " +
+        "Lakini, kwenye eneo ya nusu ya chini ya simu, gusa mara mbili kuthibitisha au sugua chini kughairi."
+private const val ANDIKA_UJUMBE_BODY_PROMPT_SW =
+    "Shikilia kitufe na useme ujumbe wako kisha achia kwenye eneo ya nusu ya juu ya simu. " +
+        "Lakini, kwenye eneo ya nusu ya chini ya simu, gusa mara mbili kuthibitisha au sugua chini kughairi."
+
 private fun PagerState.realIndex(itemCount: Int): Int =
     ((currentPage % itemCount) + itemCount) % itemCount
 
@@ -487,7 +502,7 @@ private fun GestureNavContent() {
                 composerRecipientNumber = null
                 composerBodyDraft = null
                 depth = 4
-                announce("Shikilia kitufe na useme jina au namba ya mpokeaji, kisha achia.") // "Hold the button and say the recipient's name or number, then release."
+                announce(ANDIKA_UJUMBE_RECIPIENT_PROMPT_SW)
             } else {
                 announce("Haiwezi kuandika ujumbe bila ruhusa ya sauti na SMS.") // "Cannot write a message without mic and SMS permission."
             }
@@ -605,7 +620,7 @@ private fun GestureNavContent() {
                                 composerRecipientNumber = null
                                 composerBodyDraft = null
                                 depth = 4
-                                announce("Shikilia kitufe na useme jina au namba ya mpokeaji, kisha achia.")
+                                announce(ANDIKA_UJUMBE_RECIPIENT_PROMPT_SW)
                             } else {
                                 pendingComposerEntry = true
                                 composerPermissionLauncher.launch(
@@ -772,7 +787,7 @@ private fun GestureNavContent() {
                                         composerRecipientLabel = bestContact?.displayName ?: draft
                                         composerBodyDraft = null
                                         depth = 5
-                                        announce("Shikilia kitufe na useme ujumbe wako, kisha achia.") // "Hold the button and say your message, then release."
+                                        announce(ANDIKA_UJUMBE_BODY_PROMPT_SW)
                                     }
                                 }
                                 GestureEvent.SwipeDown -> {
@@ -885,7 +900,7 @@ private fun GestureNavContent() {
                                     depth = 4
                                     announce(
                                         composerRecipientDraft?.let { "Ulisema: $it." }
-                                            ?: "Shikilia kitufe na useme jina au namba ya mpokeaji, kisha achia.",
+                                            ?: ANDIKA_UJUMBE_RECIPIENT_PROMPT_SW,
                                     )
                                 }
                                 else -> {}

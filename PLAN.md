@@ -861,6 +861,24 @@ one feature at a time, each independently verified, once this is solid.
       system confirmation dialog itself (tap "Send"/"Allow") is still
       a required manual step on every single send; this cannot be
       automated away without becoming the default SMS app.
+39. [x] **"Andika ujumbe" entry prompts revised to describe BOTH screen
+    halves** (explicit user request, verbatim final wording: "Shikilia
+    kitufe na useme jina au namba ya mpokeaji kisha achia kwenye eneo
+    ya nusu ya juu ya simu. Lakini, kwenye eneo ya nusu ya chini ya
+    simu, gusa mara mbili kuthibitisha au sugua chini kughairi."). The
+    recipient-screen prompt (spoken on entry AND when swiping back down
+    from the message-body screen) and the message-body-screen prompt
+    (same structure, "ujumbe wako" substituted for the recipient part)
+    now both explicitly describe where to hold (top half) AND where to
+    confirm/cancel (bottom half) in one combined instruction, replacing
+    the earlier shorter prompt that only mentioned holding. Extracted
+    to `ANDIKA_UJUMBE_RECIPIENT_PROMPT_SW`/`ANDIKA_UJUMBE_BODY_PROMPT_SW`
+    top-level constants, used at all 4 call sites (entry, permission-
+    grant entry, depth-5 swipe-down-back, depth-5 double-tap-advance).
+    The static on-screen label text (short on-screen reminders) was
+    deliberately left unchanged — this item only changes the SPOKEN
+    entry/re-entry announcement. `gradle compileDebugKotlin`/
+    `assembleDebug` both exit 0, no warnings.
 
 ## Phase 5 — Hardening & on-device testing checklist
 
