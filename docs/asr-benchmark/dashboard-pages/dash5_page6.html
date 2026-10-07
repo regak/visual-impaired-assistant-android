@@ -1,0 +1,140 @@
+<!DOCTYPE html><html><head><meta charset='utf-8'>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 44px; background: #0d1117; font-family: 'Segoe UI', -apple-system, 'Helvetica Neue', Arial, sans-serif; color: #e6edf3; width: 1300px; }
+  h1 { font-size: 34px; margin: 0 0 8px; font-weight: 800; }
+  .subtitle { color: #9aa5b1; font-size: 18px; margin-bottom: 20px; line-height: 1.5; }
+  .summary-grid { display: flex; gap: 18px; margin-bottom: 30px; }
+  .summary-card { flex: 1; background: #161b22; border: 2px solid #30363d; border-radius: 14px; padding: 22px 24px; }
+  .summary-card.winner { border-color: #1f9d55; box-shadow: 0 0 0 1px #1f9d55 inset; }
+  .summary-card .eng-name { font-size: 19px; font-weight: 700; margin-bottom: 12px; display:flex; align-items:center; gap:10px; flex-wrap: wrap;}
+  .badge { font-size: 13px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; background: #1f9d55; color: #fff; padding: 4px 12px; border-radius: 20px; }
+  .metric-row { display: flex; justify-content: space-between; font-size: 16px; color: #9aa5b1; margin-top: 8px; }
+  .metric-row b { color: #e6edf3; font-size: 20px; }
+  .clip-card { background: #161b22; border: 1px solid #30363d; border-radius: 18px; padding: 30px 32px; margin-bottom: 26px; }
+  .clip-header { display: flex; align-items: baseline; gap: 16px; margin-bottom: 16px; }
+  .clip-rank { font-size: 16px; font-weight: 800; color: #0d1117; background: #58a6ff; padding: 4px 14px; border-radius: 20px; }
+  .clip-name { font-size: 15px; color: #6e7681; font-family: monospace; }
+  .ref-line { font-size: 26px; font-weight: 700; color: #fff; line-height: 1.5; margin-bottom: 22px; padding-bottom: 18px; border-bottom: 1px solid #21262d; }
+  .ref-label { display:block; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: #6e7681; margin-bottom: 8px; }
+  .eng-grid { display: flex; flex-direction: column; gap: 14px; }
+  .eng-block { border-radius: 12px; padding: 16px 18px; border-left: 6px solid transparent; }
+  .eng-block.good { border-left-color: #1f9d55; background: rgba(31,157,85,0.08); }
+  .eng-block.warn { border-left-color: #d99a1b; background: rgba(217,154,27,0.09); }
+  .eng-block.bad { border-left-color: #d33b3b; background: rgba(211,59,59,0.09); }
+  .eng-head { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; }
+  .eng-label { font-size: 18px; font-weight: 700; }
+  .wer-pill { margin-left: auto; font-size: 15px; font-weight: 700; padding: 4px 13px; border-radius: 20px; }
+  .wer-pill.good { background: #1f9d55; color: #fff; }
+  .wer-pill.warn { background: #d99a1b; color: #fff; }
+  .wer-pill.bad { background: #d33b3b; color: #fff; }
+  .eng-text { font-size: 21px; color: #d5dce3; line-height: 1.55; }
+  .legend { display: flex; gap: 26px; margin: 8px 0 30px; font-size: 16px; color: #9aa5b1; }
+  .legend span { display: flex; align-items: center; gap: 8px; }
+  .page-badge { display:inline-block; background:#21262d; color:#c3cbd3; font-size:15px; font-weight:600; padding:5px 16px; border-radius:20px; margin-bottom:18px; }
+</style>
+</head><body>
+    <h1>ASR Engine Benchmark — Swahili</h1>
+    <div class="subtitle">30 real Common Voice 17 (Kenyan Swahili) clips &middot; word error rate (WER) per clip &middot; sorted worst-case first</div>
+    <div class="page-badge">Page 6 of 6 &middot; ranked #26&ndash;30 (easiest)</div>
+    
+        <div class="clip-card">
+          <div class="clip-header">
+            <span class="clip-rank">RANK #26</span>
+            <span class="clip-name">clip_008.wav</span>
+          </div>
+          <div class="ref-line"><span class="ref-label">REFERENCE (what was actually said)</span>naye akasema kuwa hajapata taarifa rasmi kutoka serikali ya kigali</div>
+          <div class="eng-grid">
+            <div class="eng-block good">
+              <div class="eng-head"><svg viewBox="0 0 24 24" width="26" height="26"><circle cx="12" cy="12" r="10" fill="#1f9d55"/><path d="M7 12.5l3 3 7-7" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="eng-label">MMS-1B-all</span><span class="wer-pill good">WER 0.10</span></div>
+              <div class="eng-text">naye akasema kuwa hajapata taarifa rasmi kutoka serikali ya kigari</div>
+            </div>
+            <div class="eng-block warn">
+              <div class="eng-head"><svg viewBox="0 0 24 24" width="26" height="26"><circle cx="12" cy="12" r="10" fill="#d99a1b"/><path d="M12 7v6" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/><circle cx="12" cy="16.3" r="1.3" fill="#fff"/></svg><span class="eng-label">Omnilingual CTC (current)</span><span class="wer-pill warn">WER 0.40</span></div>
+              <div class="eng-text">naye akasema kuwa hajapata tarifa rashimiki poka serikali ya kidadi</div>
+            </div>
+            <div class="eng-block bad">
+              <div class="eng-head"><svg viewBox="0 0 24 24" width="26" height="26"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></svg><span class="eng-label">Whisper tiny</span><span class="wer-pill bad">WER 1.00</span></div>
+              <div class="eng-text">naiya kasemakua jappata tarifara asmitutaka seri kari ati dari</div>
+            </div></div>
+        </div>
+        <div class="clip-card">
+          <div class="clip-header">
+            <span class="clip-rank">RANK #27</span>
+            <span class="clip-name">clip_003.wav</span>
+          </div>
+          <div class="ref-line"><span class="ref-label">REFERENCE (what was actually said)</span>Kwenye nchi nyingi duniani kulikuwa na habari nyingi Sana juu ya viumbe vya ajabu</div>
+          <div class="eng-grid">
+            <div class="eng-block good">
+              <div class="eng-head"><svg viewBox="0 0 24 24" width="26" height="26"><circle cx="12" cy="12" r="10" fill="#1f9d55"/><path d="M7 12.5l3 3 7-7" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="eng-label">MMS-1B-all</span><span class="wer-pill good">WER 0.07</span></div>
+              <div class="eng-text">kwenye nchi nyingi duniani kujikuwa na habari nyingi sana juu ya viumbe vya ajabu</div>
+            </div>
+            <div class="eng-block good">
+              <div class="eng-head"><svg viewBox="0 0 24 24" width="26" height="26"><circle cx="12" cy="12" r="10" fill="#1f9d55"/><path d="M7 12.5l3 3 7-7" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="eng-label">Omnilingual CTC (current)</span><span class="wer-pill good">WER 0.07</span></div>
+              <div class="eng-text">kwenye nchi nyingi duniani kulikuwa na habari nyingi sana juu ya viumbe vya ajabi</div>
+            </div>
+            <div class="eng-block bad">
+              <div class="eng-head"><svg viewBox="0 0 24 24" width="26" height="26"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></svg><span class="eng-label">Whisper tiny</span><span class="wer-pill bad">WER 1.00</span></div>
+              <div class="eng-text">konea, konea, konea, konea, konea, konea, konea, konea, konea,</div>
+            </div></div>
+        </div>
+        <div class="clip-card">
+          <div class="clip-header">
+            <span class="clip-rank">RANK #28</span>
+            <span class="clip-name">clip_002.wav</span>
+          </div>
+          <div class="ref-line"><span class="ref-label">REFERENCE (what was actually said)</span>Wao ni chanzo tajiri cha viumbe hai</div>
+          <div class="eng-grid">
+            <div class="eng-block good">
+              <div class="eng-head"><svg viewBox="0 0 24 24" width="26" height="26"><circle cx="12" cy="12" r="10" fill="#1f9d55"/><path d="M7 12.5l3 3 7-7" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="eng-label">MMS-1B-all</span><span class="wer-pill good">WER 0.00</span></div>
+              <div class="eng-text">wao ni chanzo tajiri cha viumbe hai</div>
+            </div>
+            <div class="eng-block warn">
+              <div class="eng-head"><svg viewBox="0 0 24 24" width="26" height="26"><circle cx="12" cy="12" r="10" fill="#d99a1b"/><path d="M12 7v6" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/><circle cx="12" cy="16.3" r="1.3" fill="#fff"/></svg><span class="eng-label">Omnilingual CTC (current)</span><span class="wer-pill warn">WER 0.43</span></div>
+              <div class="eng-text">mwao ni chanzwa tajiri cha viumbe hayo</div>
+            </div>
+            <div class="eng-block bad">
+              <div class="eng-head"><svg viewBox="0 0 24 24" width="26" height="26"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></svg><span class="eng-label">Whisper tiny</span><span class="wer-pill bad">WER 1.43</span></div>
+              <div class="eng-text">Wa, nii ca'u ta'u ta'u dilih nii ca'u dilih nii</div>
+            </div></div>
+        </div>
+        <div class="clip-card">
+          <div class="clip-header">
+            <span class="clip-rank">RANK #29</span>
+            <span class="clip-name">clip_022.wav</span>
+          </div>
+          <div class="ref-line"><span class="ref-label">REFERENCE (what was actually said)</span>kuwa na heshima kwa pande zote na kutokuelewana</div>
+          <div class="eng-grid">
+            <div class="eng-block good">
+              <div class="eng-head"><svg viewBox="0 0 24 24" width="26" height="26"><circle cx="12" cy="12" r="10" fill="#1f9d55"/><path d="M7 12.5l3 3 7-7" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="eng-label">MMS-1B-all</span><span class="wer-pill good">WER 0.00</span></div>
+              <div class="eng-text">kuwa na heshima kwa pande zote na kutokuelewana</div>
+            </div>
+            <div class="eng-block bad">
+              <div class="eng-head"><svg viewBox="0 0 24 24" width="26" height="26"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></svg><span class="eng-label">Omnilingual CTC (current)</span><span class="wer-pill bad">WER 0.62</span></div>
+              <div class="eng-text">kuwa na hesima ko bande yote na kutkuelewa</div>
+            </div>
+            <div class="eng-block bad">
+              <div class="eng-head"><svg viewBox="0 0 24 24" width="26" height="26"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></svg><span class="eng-label">Whisper tiny</span><span class="wer-pill bad">WER 1.62</span></div>
+              <div class="eng-text">kowanahe si mafi kowanahe si mafi kowanahe si mafi kowanahe si mafi kowan</div>
+            </div></div>
+        </div>
+        <div class="clip-card">
+          <div class="clip-header">
+            <span class="clip-rank">RANK #30</span>
+            <span class="clip-name">clip_029.wav</span>
+          </div>
+          <div class="ref-line"><span class="ref-label">REFERENCE (what was actually said)</span>mashabiki wengi hapa katika ukanda</div>
+          <div class="eng-grid">
+            <div class="eng-block good">
+              <div class="eng-head"><svg viewBox="0 0 24 24" width="26" height="26"><circle cx="12" cy="12" r="10" fill="#1f9d55"/><path d="M7 12.5l3 3 7-7" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="eng-label">MMS-1B-all</span><span class="wer-pill good">WER 0.00</span></div>
+              <div class="eng-text">mashabiki wengi hapa katika ukanda</div>
+            </div>
+            <div class="eng-block good">
+              <div class="eng-head"><svg viewBox="0 0 24 24" width="26" height="26"><circle cx="12" cy="12" r="10" fill="#1f9d55"/><path d="M7 12.5l3 3 7-7" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="eng-label">Omnilingual CTC (current)</span><span class="wer-pill good">WER 0.20</span></div>
+              <div class="eng-text">mashabiki wengi hapa katika ukange</div>
+            </div>
+            <div class="eng-block bad">
+              <div class="eng-head"><svg viewBox="0 0 24 24" width="26" height="26"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></svg><span class="eng-label">Whisper tiny</span><span class="wer-pill bad">WER 1.20</span></div>
+              <div class="eng-text">masebhi ki wainghi hapa kati kaup kaun</div>
+            </div></div>
+        </div></body></html>

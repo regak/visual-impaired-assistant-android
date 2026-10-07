@@ -1,0 +1,140 @@
+<!DOCTYPE html><html><head><meta charset='utf-8'>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 44px; background: #0d1117; font-family: 'Segoe UI', -apple-system, 'Helvetica Neue', Arial, sans-serif; color: #e6edf3; width: 1300px; }
+  h1 { font-size: 34px; margin: 0 0 8px; font-weight: 800; }
+  .subtitle { color: #9aa5b1; font-size: 18px; margin-bottom: 20px; line-height: 1.5; }
+  .summary-grid { display: flex; gap: 18px; margin-bottom: 30px; }
+  .summary-card { flex: 1; background: #161b22; border: 2px solid #30363d; border-radius: 14px; padding: 22px 24px; }
+  .summary-card.winner { border-color: #1f9d55; box-shadow: 0 0 0 1px #1f9d55 inset; }
+  .summary-card .eng-name { font-size: 19px; font-weight: 700; margin-bottom: 12px; display:flex; align-items:center; gap:10px; flex-wrap: wrap;}
+  .badge { font-size: 13px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; background: #1f9d55; color: #fff; padding: 4px 12px; border-radius: 20px; }
+  .metric-row { display: flex; justify-content: space-between; font-size: 16px; color: #9aa5b1; margin-top: 8px; }
+  .metric-row b { color: #e6edf3; font-size: 20px; }
+  .clip-card { background: #161b22; border: 1px solid #30363d; border-radius: 18px; padding: 30px 32px; margin-bottom: 26px; }
+  .clip-header { display: flex; align-items: baseline; gap: 16px; margin-bottom: 16px; }
+  .clip-rank { font-size: 16px; font-weight: 800; color: #0d1117; background: #58a6ff; padding: 4px 14px; border-radius: 20px; }
+  .clip-name { font-size: 15px; color: #6e7681; font-family: monospace; }
+  .ref-line { font-size: 26px; font-weight: 700; color: #fff; line-height: 1.5; margin-bottom: 22px; padding-bottom: 18px; border-bottom: 1px solid #21262d; }
+  .ref-label { display:block; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: #6e7681; margin-bottom: 8px; }
+  .eng-grid { display: flex; flex-direction: column; gap: 14px; }
+  .eng-block { border-radius: 12px; padding: 16px 18px; border-left: 6px solid transparent; }
+  .eng-block.good { border-left-color: #1f9d55; background: rgba(31,157,85,0.08); }
+  .eng-block.warn { border-left-color: #d99a1b; background: rgba(217,154,27,0.09); }
+  .eng-block.bad { border-left-color: #d33b3b; background: rgba(211,59,59,0.09); }
+  .eng-head { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; }
+  .eng-label { font-size: 18px; font-weight: 700; }
+  .wer-pill { margin-left: auto; font-size: 15px; font-weight: 700; padding: 4px 13px; border-radius: 20px; }
+  .wer-pill.good { background: #1f9d55; color: #fff; }
+  .wer-pill.warn { background: #d99a1b; color: #fff; }
+  .wer-pill.bad { background: #d33b3b; color: #fff; }
+  .eng-text { font-size: 21px; color: #d5dce3; line-height: 1.55; }
+  .legend { display: flex; gap: 26px; margin: 8px 0 30px; font-size: 16px; color: #9aa5b1; }
+  .legend span { display: flex; align-items: center; gap: 8px; }
+  .page-badge { display:inline-block; background:#21262d; color:#c3cbd3; font-size:15px; font-weight:600; padding:5px 16px; border-radius:20px; margin-bottom:18px; }
+</style>
+</head><body>
+    <h1>ASR Engine Benchmark — Swahili</h1>
+    <div class="subtitle">30 real Common Voice 17 (Kenyan Swahili) clips &middot; word error rate (WER) per clip &middot; sorted worst-case first</div>
+    <div class="page-badge">Page 5 of 6 &middot; ranked #21&ndash;25 </div>
+    
+        <div class="clip-card">
+          <div class="clip-header">
+            <span class="clip-rank">RANK #21</span>
+            <span class="clip-name">clip_015.wav</span>
+          </div>
+          <div class="ref-line"><span class="ref-label">REFERENCE (what was actually said)</span>walitaka Kanisa la Kiafrika na kuchukia mambo ya Kilatini alikubali</div>
+          <div class="eng-grid">
+            <div class="eng-block good">
+              <div class="eng-head"><svg viewBox="0 0 24 24" width="26" height="26"><circle cx="12" cy="12" r="10" fill="#1f9d55"/><path d="M7 12.5l3 3 7-7" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="eng-label">MMS-1B-all</span><span class="wer-pill good">WER 0.20</span></div>
+              <div class="eng-text">walitaka kanisa la kiafrika na kkuthukia mambo ya kilatini alikibali</div>
+            </div>
+            <div class="eng-block bad">
+              <div class="eng-head"><svg viewBox="0 0 24 24" width="26" height="26"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></svg><span class="eng-label">Omnilingual CTC (current)</span><span class="wer-pill bad">WER 0.60</span></div>
+              <div class="eng-text">walitaka kanisa la kiapika na kucukua kutukia mambo ya kila tini alikibaya</div>
+            </div>
+            <div class="eng-block bad">
+              <div class="eng-head"><svg viewBox="0 0 24 24" width="26" height="26"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></svg><span class="eng-label">Whisper tiny</span><span class="wer-pill bad">WER 1.10</span></div>
+              <div class="eng-text">waditara kane salakia fekana kuchikuwa kuchikuwa kuchikuwa mamiwa kuchikuwa jidacini alitubaan</div>
+            </div></div>
+        </div>
+        <div class="clip-card">
+          <div class="clip-header">
+            <span class="clip-rank">RANK #22</span>
+            <span class="clip-name">clip_011.wav</span>
+          </div>
+          <div class="ref-line"><span class="ref-label">REFERENCE (what was actually said)</span>wa uendeshaji wa serikali kwa sababu</div>
+          <div class="eng-grid">
+            <div class="eng-block good">
+              <div class="eng-head"><svg viewBox="0 0 24 24" width="26" height="26"><circle cx="12" cy="12" r="10" fill="#1f9d55"/><path d="M7 12.5l3 3 7-7" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="eng-label">MMS-1B-all</span><span class="wer-pill good">WER 0.17</span></div>
+              <div class="eng-text">wa uembeshaji wa serikali kwa sababu</div>
+            </div>
+            <div class="eng-block warn">
+              <div class="eng-head"><svg viewBox="0 0 24 24" width="26" height="26"><circle cx="12" cy="12" r="10" fill="#d99a1b"/><path d="M12 7v6" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/><circle cx="12" cy="16.3" r="1.3" fill="#fff"/></svg><span class="eng-label">Omnilingual CTC (current)</span><span class="wer-pill warn">WER 0.33</span></div>
+              <div class="eng-text">wauendeshaji wa serikali kwa sababu</div>
+            </div>
+            <div class="eng-block bad">
+              <div class="eng-head"><svg viewBox="0 0 24 24" width="26" height="26"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></svg><span class="eng-label">Whisper tiny</span><span class="wer-pill bad">WER 1.00</span></div>
+              <div class="eng-text">Waiwain Veshajiwase Rikari Kwasadaba</div>
+            </div></div>
+        </div>
+        <div class="clip-card">
+          <div class="clip-header">
+            <span class="clip-rank">RANK #23</span>
+            <span class="clip-name">clip_027.wav</span>
+          </div>
+          <div class="ref-line"><span class="ref-label">REFERENCE (what was actually said)</span>Wakwere wengi ni watawala yaani viongozi</div>
+          <div class="eng-grid">
+            <div class="eng-block good">
+              <div class="eng-head"><svg viewBox="0 0 24 24" width="26" height="26"><circle cx="12" cy="12" r="10" fill="#1f9d55"/><path d="M7 12.5l3 3 7-7" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="eng-label">MMS-1B-all</span><span class="wer-pill good">WER 0.17</span></div>
+              <div class="eng-text">wakwere wengine ni watawala yaani viongozi</div>
+            </div>
+            <div class="eng-block bad">
+              <div class="eng-head"><svg viewBox="0 0 24 24" width="26" height="26"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></svg><span class="eng-label">Omnilingual CTC (current)</span><span class="wer-pill bad">WER 0.67</span></div>
+              <div class="eng-text">wakwere wengi ni watawara ya ni vyongovi</div>
+            </div>
+            <div class="eng-block bad">
+              <div class="eng-head"><svg viewBox="0 0 24 24" width="26" height="26"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></svg><span class="eng-label">Whisper tiny</span><span class="wer-pill bad">WER 1.00</span></div>
+              <div class="eng-text">kakwaire wengewakawara yangigim bor.</div>
+            </div></div>
+        </div>
+        <div class="clip-card">
+          <div class="clip-header">
+            <span class="clip-rank">RANK #24</span>
+            <span class="clip-name">clip_017.wav</span>
+          </div>
+          <div class="ref-line"><span class="ref-label">REFERENCE (what was actually said)</span>Ndio maana Karafuu hutumika kama kiungo cha chai</div>
+          <div class="eng-grid">
+            <div class="eng-block good">
+              <div class="eng-head"><svg viewBox="0 0 24 24" width="26" height="26"><circle cx="12" cy="12" r="10" fill="#1f9d55"/><path d="M7 12.5l3 3 7-7" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="eng-label">MMS-1B-all</span><span class="wer-pill good">WER 0.12</span></div>
+              <div class="eng-text">ndio maana karafuu hutumika kama kiungo cha chayi</div>
+            </div>
+            <div class="eng-block bad">
+              <div class="eng-head"><svg viewBox="0 0 24 24" width="26" height="26"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></svg><span class="eng-label">Omnilingual CTC (current)</span><span class="wer-pill bad">WER 0.62</span></div>
+              <div class="eng-text">mdiyo maana karafuu hukumeza kama kiogo chachani</div>
+            </div>
+            <div class="eng-block bad">
+              <div class="eng-head"><svg viewBox="0 0 24 24" width="26" height="26"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></svg><span class="eng-label">Whisper tiny</span><span class="wer-pill bad">WER 1.00</span></div>
+              <div class="eng-text">Diamana Karafu hindi ka puka majiloga cichai</div>
+            </div></div>
+        </div>
+        <div class="clip-card">
+          <div class="clip-header">
+            <span class="clip-rank">RANK #25</span>
+            <span class="clip-name">clip_001.wav</span>
+          </div>
+          <div class="ref-line"><span class="ref-label">REFERENCE (what was actually said)</span>utaona wamebadilisha kauli na sasa wataanza kumuunga mkono kwa hivyo</div>
+          <div class="eng-grid">
+            <div class="eng-block good">
+              <div class="eng-head"><svg viewBox="0 0 24 24" width="26" height="26"><circle cx="12" cy="12" r="10" fill="#1f9d55"/><path d="M7 12.5l3 3 7-7" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="eng-label">MMS-1B-all</span><span class="wer-pill good">WER 0.20</span></div>
+              <div class="eng-text">utaono umebadhilisha kauli na sasa wataanza kumuunga mkono kwa hivyo</div>
+            </div>
+            <div class="eng-block good">
+              <div class="eng-head"><svg viewBox="0 0 24 24" width="26" height="26"><circle cx="12" cy="12" r="10" fill="#1f9d55"/><path d="M7 12.5l3 3 7-7" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="eng-label">Omnilingual CTC (current)</span><span class="wer-pill good">WER 0.10</span></div>
+              <div class="eng-text">utaona umebaadilisha kauli na sasa wataanza kumuunga mkono kwa hivyo</div>
+            </div>
+            <div class="eng-block bad">
+              <div class="eng-head"><svg viewBox="0 0 24 24" width="26" height="26"><circle cx="12" cy="12" r="10" fill="#d33b3b"/><path d="M9 9l6 6M15 9l-6 6" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></svg><span class="eng-label">Whisper tiny</span><span class="wer-pill bad">WER 1.10</span></div>
+              <div class="eng-text">kawanomai bai bai di lixia kawanomai nasa saatang zaptumonga mkona p</div>
+            </div></div>
+        </div></body></html>
