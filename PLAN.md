@@ -879,6 +879,35 @@ one feature at a time, each independently verified, once this is solid.
     deliberately left unchanged — this item only changes the SPOKEN
     entry/re-entry announcement. `gradle compileDebugKotlin`/
     `assembleDebug` both exit 0, no warnings.
+40. [x] **Swahili number-words -> digits for the "Andika ujumbe"
+    recipient field** (explicit user request/screenshot: a dictated
+    phone number transcribed as "Ulisema: sufuri saba nenne sufuri
+    tanu sufuri mbiri tatu tanu." instead of digits — unreadable
+    readback and useless for actually resolving/dialing the number).
+    Best-practice approach per plan: post-process the ASR transcript
+    with a dedicated word->digit converter rather than asking the ASR
+    model itself to output digits (speech models transcribe what was
+    said; reformatting is correctly a separate text-normalization
+    step) — same pattern already proven in the sibling `murmur-
+    android` project's `NumberWordConverter`.
+    - New `core/SwahiliNumberWordConverter.kt`: units 0-9, tens (kumi..
+      tisini), magnitudes (mia/elfu), a small variant-spelling map for
+      ASR misrecognitions actually observed ("tanu"->"tano",
+      "mbiri"->"mbili", "nenne"->"nne"). 2+ consecutive bare-unit
+      words concatenate digit-by-digit with no separator (phone-
+      number-style dictation, the dominant real-world case); a single
+      cardinal phrase with a tens/hundred/thousand word parses
+      additively ("ishirini na tano" -> "25"). Conservative like
+      murmur's version: a run that doesn't parse cleanly is left as
+      the original words, never guessed at.
+    - Wired into `DictationController`'s transcript callback ONLY for
+      depth==4 (recipient capture) — NOT depth==5 (message body),
+      since a message body may legitimately contain spoken-out
+      numbers that should stay as words.
+    - `gradle compileDebugKotlin`/`assembleDebug` both exit 0, no
+      warnings. Logic hand-traced against the exact screenshot
+      transcript (confirms correct digit-by-digit concatenation); not
+      yet verified against a live on-device dictation.
 
 ## Phase 5 — Hardening & on-device testing checklist
 

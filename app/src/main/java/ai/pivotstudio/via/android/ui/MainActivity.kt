@@ -47,6 +47,7 @@ import ai.pivotstudio.via.android.core.DictationController
 import ai.pivotstudio.via.android.core.GestureEvent
 import ai.pivotstudio.via.android.core.gestureNavigation
 import ai.pivotstudio.via.android.core.SpeechSegmenter
+import ai.pivotstudio.via.android.core.SwahiliNumberWordConverter
 import ai.pivotstudio.via.android.asr.OmnilingualAsrEngine
 import ai.pivotstudio.via.android.sms.UjumbeRepository
 import ai.pivotstudio.via.android.telephony.SimuRepository
@@ -461,8 +462,16 @@ private fun GestureNavContent() {
             when (result) {
                 is DictationController.Result.Transcript -> {
                     if (depth == 4) {
-                        composerRecipientDraft = result.text
-                        announce("Ulisema: ${result.text}. Gusa mara mbili kuthibitisha, au shikilia tena kurekodi upya.")
+                        // Convert Swahili number-words to digits for the
+                        // recipient field specifically (PLAN.md Phase 4 —
+                        // explicit user request/screenshot: a dictated
+                        // phone number transcribes as a wall of Swahili
+                        // number words, not digits). NOT applied to the
+                        // message body (depth 5) — a message body may
+                        // legitimately contain spoken-out numbers that
+                        // should stay as words.
+                        composerRecipientDraft = SwahiliNumberWordConverter.convert(result.text)
+                        announce("Ulisema: ${composerRecipientDraft}. Gusa mara mbili kuthibitisha, au shikilia tena kurekodi upya.")
                     } else if (depth == 5) {
                         composerBodyDraft = result.text
                         announce("Ulisema: ${result.text}. Gusa mara mbili kuthibitisha, au shikilia tena kurekodi upya.")
