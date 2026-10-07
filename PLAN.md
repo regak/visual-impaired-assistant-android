@@ -953,6 +953,40 @@ one feature at a time, each independently verified, once this is solid.
       leo, jana, ujumbe, vizuri, hujambo, kwaheri — all correctly
       non-matching); not yet verified against a live on-device
       dictation.
+43. [x] **Added delivery reports + international number normalization
+    for "Andika ujumbe"** (explicit user bug report, with screenshots
+    comparing our app's sent-message details dialog against the
+    system Messages app's: ours showed NO "Received:" field at all
+    and the bare local number "0719220259", while the system app
+    showed "Received: <time>" and the full international
+    "+255719220259"). Root causes: (1) `UjumbeRepository.sendSms`
+    only ever registered a `sentIntent` with `SmsManager`, never a
+    `deliveryIntent`, so Android had no delivery report to track or
+    show; (2) the number was sent/stored exactly as dictated/typed,
+    never normalized to the international format the system app uses.
+    - New `normalizeToInternational(number)`: local-format Tanzanian
+      numbers ("0" + 9 digits) become "+255" + the remaining 9 digits;
+      already-international or unusual formats pass through unchanged
+      rather than guessed at. Applied before both sending AND storing
+      the Sent-provider row.
+    - `sendSms` now also builds a `deliveryIntents` list (mirroring
+      the existing `sentIntents` list) and passes it to
+      `sendMultipartTextMessage` (previously `null`). A second
+      `BroadcastReceiver` listens for the delivery broadcast and
+      updates the stored message's `Telephony.Sms.STATUS` column to
+      `STATUS_COMPLETE` on success, so the system Messages app's own
+      details dialog picks up "Received:" the same way it would for a
+      message sent by the default SMS app. The stored row starts at
+      `STATUS_PENDING` instead of the previous unset/`STATUS_NONE`.
+      Independent 15s timeout safety net mirrors the existing sent-
+      receiver pattern, so the delivery receiver always unregisters
+      itself even if the carrier never reports back.
+    - Caveat (cannot be fully verified without on-device testing):
+      whether a delivery report actually arrives still partly depends
+      on carrier support — not every SIM/network combination sends
+      one back, regardless of this fix.
+    - `gradle compileDebugKotlin`/`assembleDebug` both exit 0, no
+      warnings.
 
 ## Phase 5 — Hardening & on-device testing checklist
 
