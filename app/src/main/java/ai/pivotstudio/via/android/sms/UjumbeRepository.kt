@@ -184,27 +184,38 @@ class UjumbeRepository(private val context: Context) {
      * field at all in their details dialog, unlike the system app's
      * messages, because the previous version only ever registered a
      * sentIntent, never a deliveryIntent — so Android had no delivery
-     * report to track or display). When a delivery report comes back,
-     * the matching row's [Telephony.Sms.STATUS] is updated to
-     * [Telephony.Sms.STATUS_COMPLETE] so the system Messages app's own
-     * details dialog picks it up, same as it would for a message sent
-     * by the default SMS app. Whether a delivery report actually
-     * arrives still partly depends on carrier support — not every
-     * SIM/network combination sends one back, regardless of this fix.
+     * report to track or display). Delivery broadcasts are now handled
+     * by the MANIFEST-registered [SmsDeliveryReceiver] (PLAN.md Phase
+     * 4 — explicit user question: "will it work even when I move to
+     * another app... so it works even in the background?") rather than
+     * a receiver dynamically registered here, so the delivery
+     * confirmation — including its spoken "Ujumbe umepokelewa na
+     * [jina]." announcement — still arrives even if Android has fully
+     * killed this app's process by the time the carrier reports back.
+     * [recipientLabel] (the resolved contact name, or the number
+     * itself if no contact matched) is carried through as an Intent
+     * extra so that receiver can speak the right name without this
+     * Activity/process needing to still be alive. Whether a delivery
+     * report actually arrives still partly depends on carrier support
+     * — not every SIM/network combination sends one back, regardless
+     * of this fix.
      *
-     * A fresh [BroadcastReceiver] is registered per call (one for sent,
-     * one for delivery) and each unregisters itself once every part's
-     * result has been reported (or after [SEND_RESULT_TIMEOUT_MS]
-     * elapses with no response, so a caller's [onResult] is never left
-     * uncalled if the OS never broadcasts back for some reason).
+     * A fresh sent-confirmation [BroadcastReceiver] is still registered
+     * dynamically per call (that one is fine to lose if the process
+     * dies — the "sent" event already happened by the time the user
+     * could plausibly switch away, since it fires within the same
+     * foreground interaction as the system's send-confirmation dialog)
+     * and unregisters itself once every part's result has been
+     * reported (or after [SEND_RESULT_TIMEOUT_MS] elapses with no
+     * response, so a caller's [onResult] is never left uncalled if the
+     * OS never broadcasts back for some reason).
      */
-    fun sendSms(number: String, body: String, onResult: (Boolean) -> Unit = {}) {
+    fun sendSms(number: String, body: String, recipientLabel: String = number, onResult: (Boolean) -> Unit = {}) {
         val normalizedNumber = normalizeToInternational(number)
         val smsManager = context.getSystemService(SmsManager::class.java)
         val parts = smsManager.divideMessage(body)
 
         val sentAction = "${context.packageName}.SMS_SENT_${System.nanoTime()}"
-        val deliveredAction = "${context.packageName}.SMS_DELIVERED_${System.nanoTime()}"
         val sentIntents = ArrayList<PendingIntent>(parts.size)
         val deliveryIntents = ArrayList<PendingIntent>(parts.size)
         val resultsReceived = booleanArrayOf(false)
@@ -238,45 +249,6 @@ class UjumbeRepository(private val context: Context) {
         }
         ContextCompat.registerReceiver(context, sentReceiver, IntentFilter(sentAction), receiverFlags)
 
-        // Delivery receiver: updates the stored message's STATUS column
-        // so the system Messages app's details dialog shows "Received:"
-        // once the carrier confirms the recipient's device got it.
-        // Unregisters itself after every part reports, or after
-        // SEND_RESULT_TIMEOUT_MS as its own independent safety net (a
-        // delivery report commonly arrives later than, or never at all
-        // vs., the sent report — never block/affect [onResult] on it).
-        val deliveryRemaining = intArrayOf(parts.size)
-        val deliveryUnregistered = booleanArrayOf(false)
-        lateinit var deliveryReceiver: BroadcastReceiver
-        val finishDelivery = {
-            if (!deliveryUnregistered[0]) {
-                deliveryUnregistered[0] = true
-                try {
-                    context.unregisterReceiver(deliveryReceiver)
-                } catch (_: IllegalArgumentException) {
-                    // Already unregistered — fine.
-                }
-            }
-        }
-        deliveryReceiver = object : BroadcastReceiver() {
-            override fun onReceive(ctx: Context, intent: Intent) {
-                if (resultCode == Activity.RESULT_OK) {
-                    val values = ContentValues().apply {
-                        put(Telephony.Sms.STATUS, Telephony.Sms.STATUS_COMPLETE)
-                    }
-                    context.contentResolver.update(
-                        Telephony.Sms.CONTENT_URI,
-                        values,
-                        "${Telephony.Sms.ADDRESS} = ? AND ${Telephony.Sms.BODY} = ? AND ${Telephony.Sms.TYPE} = ?",
-                        arrayOf(normalizedNumber, body, Telephony.Sms.MESSAGE_TYPE_SENT.toString()),
-                    )
-                }
-                deliveryRemaining[0]--
-                if (deliveryRemaining[0] <= 0) finishDelivery()
-            }
-        }
-        ContextCompat.registerReceiver(context, deliveryReceiver, IntentFilter(deliveredAction), receiverFlags)
-
         for (i in parts.indices) {
             sentIntents.add(
                 PendingIntent.getBroadcast(
@@ -286,11 +258,21 @@ class UjumbeRepository(private val context: Context) {
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
                 ),
             )
+            // Only the LAST part's delivery intent carries announce=true,
+            // so a multi-part message speaks "received" exactly once
+            // (per-part delivery broadcasts can arrive in any order or
+            // close together; this avoids a double announcement).
             deliveryIntents.add(
                 PendingIntent.getBroadcast(
                     context,
                     parts.size + i,
-                    Intent(deliveredAction).setPackage(context.packageName),
+                    Intent(SmsDeliveryReceiver.ACTION_SMS_DELIVERED).apply {
+                        setPackage(context.packageName)
+                        putExtra(SmsDeliveryReceiver.EXTRA_NUMBER, normalizedNumber)
+                        putExtra(SmsDeliveryReceiver.EXTRA_BODY, body)
+                        putExtra(SmsDeliveryReceiver.EXTRA_LABEL, recipientLabel)
+                        putExtra(SmsDeliveryReceiver.EXTRA_ANNOUNCE, i == parts.size - 1)
+                    },
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
                 ),
             )
@@ -304,9 +286,6 @@ class UjumbeRepository(private val context: Context) {
         android.os.Handler(context.mainLooper).postDelayed({
             if (!resultsReceived[0]) finish(false)
         }, SEND_RESULT_TIMEOUT_MS)
-        android.os.Handler(context.mainLooper).postDelayed({
-            finishDelivery()
-        }, SEND_RESULT_TIMEOUT_MS)
 
         val values = ContentValues().apply {
             put(Telephony.Sms.ADDRESS, normalizedNumber)
@@ -314,10 +293,10 @@ class UjumbeRepository(private val context: Context) {
             put(Telephony.Sms.DATE, System.currentTimeMillis())
             put(Telephony.Sms.TYPE, Telephony.Sms.MESSAGE_TYPE_SENT)
             // STATUS_PENDING (not STATUS_NONE) so the system Messages app
-            // shows a delivery-tracking state until the deliveryReceiver
-            // above updates it to STATUS_COMPLETE (or leaves it pending
-            // if the carrier never reports back / this app's send path
-            // doesn't support it on this network).
+            // shows a delivery-tracking state until SmsDeliveryReceiver
+            // updates it to STATUS_COMPLETE (or leaves it pending if the
+            // carrier never reports back / this app's send path doesn't
+            // support it on this network).
             put(Telephony.Sms.STATUS, Telephony.Sms.STATUS_PENDING)
         }
         context.contentResolver.insert(Uri.parse("content://sms/sent"), values)

@@ -987,6 +987,55 @@ one feature at a time, each independently verified, once this is solid.
       one back, regardless of this fix.
     - `gradle compileDebugKotlin`/`assembleDebug` both exit 0, no
       warnings.
+44. [x] **Spoken "message received" confirmation + survives app being
+    backgrounded/killed** (explicit user feedback/question: "the
+    system shows 'received' but the app does not provide feedback
+    using TTS" + "will it work even when I move to another app
+    without closing it so it works even in the background?"). Two
+    parts, both addressing the same underlying design choice:
+    - New `SmsDeliveryReceiver` class, MANIFEST-registered in
+      `AndroidManifest.xml` against a stable
+      `ai.pivotstudio.via.android.SMS_DELIVERED` action (NOT a
+      dynamically-registered receiver tied to the Activity/process's
+      lifetime, which is what the previous round used). A manifest
+      receiver survives even if Android has fully killed the app's
+      background process by the time the carrier's delivery report
+      arrives — Android itself briefly wakes the app just to deliver
+      the broadcast. Chosen explicitly over a foreground service
+      (reserved for item 17's genuinely-long-running recording
+      use-case; a one-shot delivery confirmation doesn't need to pin
+      a whole process alive, and avoids an extra persistent
+      notification).
+    - `SmsDeliveryReceiver.onReceive` updates the `STATUS_COMPLETE`
+      database flag (same as before) AND, only on the LAST SMS part
+      (`EXTRA_ANNOUNCE` extra, to avoid double-announcing a
+      multi-part message), speaks "Ujumbe umepokelewa na [jina]."
+      via its OWN freshly-constructed `SpeechOutput` instance (using
+      `goAsync()` + a background coroutine, since TTS init+speak is
+      too slow for a receiver's normal main-thread time budget) —
+      independent of whatever screen the app happens to be on by the
+      time the carrier reports back (which may be well after the
+      "Ujumbe umetumwa" sent-confirmation already returned the user
+      to depth 1). Silence (no announcement at all) on a non-OK
+      delivery result or on timeout, since the absence of a report
+      does NOT necessarily mean failed delivery — delivery reports
+      aren't universal across carriers.
+    - `UjumbeRepository.sendSms` gained a `recipientLabel` parameter
+      (defaults to the number) carried through as an Intent extra, so
+      the receiver can speak the resolved contact name even though
+      the Activity/process that resolved it may no longer exist.
+      Dropped the dynamic delivery-receiver code from last round
+      entirely (replaced by the manifest one above); the sent-
+      confirmation receiver is UNCHANGED/still dynamic, since that
+      event fires within the same foreground interaction as the
+      system's own send-confirmation dialog and is fine to lose if
+      the process dies afterward.
+    - `gradle compileDebugKotlin`/`assembleDebug` both exit 0, no
+      warnings (manifest merger also verified clean). Not yet tested
+      on-device, especially the actual background-survival claim —
+      true confirmation requires killing/backgrounding the app for a
+      real delivery report window, which can't be exercised in this
+      build environment.
 
 ## Phase 5 — Hardening & on-device testing checklist
 

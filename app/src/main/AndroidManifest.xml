@@ -55,6 +55,24 @@
              so the manifest does not reference a class that does not
              exist yet (would fail the manifest merger at compile time). -->
 
+        <!-- "Andika ujumbe" SMS delivery confirmation (PLAN.md Phase 4
+             — explicit user question: "will it work even when I move
+             to another app... so it works even in the background?").
+             Manifest-registered (not dynamic) so this survives even if
+             Android has fully killed the app's process by the time the
+             carrier's delivery report arrives — see SmsDeliveryReceiver's
+             own doc comment for the full reasoning. exported=false:
+             only this app's own PendingIntent (built with
+             setPackage(context.packageName) in UjumbeRepository) is
+             ever meant to trigger it. -->
+        <receiver
+            android:name=".sms.SmsDeliveryReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="ai.pivotstudio.via.android.SMS_DELIVERED" />
+            </intent-filter>
+        </receiver>
+
     </application>
 
 </manifest>

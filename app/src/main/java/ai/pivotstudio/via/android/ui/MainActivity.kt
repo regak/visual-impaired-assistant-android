@@ -904,7 +904,7 @@ private fun GestureNavContent() {
                                         composerSendInFlight = true
                                         announce("Mfumo utakuuliza kuthibitisha. Bonyeza Tuma.") // "The system will ask you to confirm. Tap Send."
                                         try {
-                                            ujumbeRepository.sendSms(number, body) { success ->
+                                            ujumbeRepository.sendSms(number, body, recipientLabel = label) { success ->
                                                 composerSendInFlight = false
                                                 composerBodyPendingSend = false
                                                 if (success) {
