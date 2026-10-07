@@ -908,6 +908,22 @@ one feature at a time, each independently verified, once this is solid.
       warnings. Logic hand-traced against the exact screenshot
       transcript (confirms correct digit-by-digit concatenation); not
       yet verified against a live on-device dictation.
+41. [x] **Fixed: resolved phone number silently swapped for a wrong
+    contact's number** (explicit user bug report, with screenshots:
+    "the number in the sender window is different from the final
+    after composing the message"). Root cause: `searchContactsByVoicedName`
+    does fuzzy Levenshtein-distance matching against contact display
+    NAMES — item 40's digit string (e.g. "0719220259") was still being
+    run through it on every recipient confirm, and a digit string
+    could score above `MIN_SIMILARITY_THRESHOLD` against some
+    unrelated contact's name, silently substituting that contact's
+    number for the one actually spoken/confirmed. Fix: when
+    `composerRecipientDraft` is already a pure digit string (all
+    chars `isDigit()`), use it directly as both the number AND label,
+    skipping `searchContactsByVoicedName` entirely — only spoken
+    CONTACT NAMES (containing non-digit characters) still go through
+    fuzzy matching. `gradle compileDebugKotlin`/`assembleDebug` both
+    exit 0, no warnings.
 
 ## Phase 5 — Hardening & on-device testing checklist
 

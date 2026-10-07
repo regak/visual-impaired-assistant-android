@@ -790,6 +790,24 @@ private fun GestureNavContent() {
                                     val draft = composerRecipientDraft
                                     if (draft == null) {
                                         announce("Bado hujasema jina au namba. Shikilia kitufe juu.")
+                                    } else if (draft.all { it.isDigit() }) {
+                                        // Already a resolved phone number (the
+                                        // SwahiliNumberWordConverter produced a
+                                        // pure digit string) — use it directly,
+                                        // skip contact-name fuzzy matching.
+                                        // Explicit user bug report, with
+                                        // screenshots: fuzzy Levenshtein name
+                                        // matching against a digit string could
+                                        // score above MIN_SIMILARITY_THRESHOLD
+                                        // against some unrelated contact's
+                                        // display name, silently substituting
+                                        // that contact's number for the one the
+                                        // user actually spoke/confirmed.
+                                        composerRecipientNumber = draft
+                                        composerRecipientLabel = draft
+                                        composerBodyDraft = null
+                                        depth = 5
+                                        announce(ANDIKA_UJUMBE_BODY_PROMPT_SW)
                                     } else {
                                         val bestContact = simuRepository.searchContactsByVoicedName(draft, maxResults = 1).firstOrNull()
                                         composerRecipientNumber = bestContact?.number ?: draft
