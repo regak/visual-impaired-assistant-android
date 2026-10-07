@@ -1,10 +1,17 @@
 package ai.pivotstudio.via.android.sms
 
+import android.app.Activity
+import android.app.PendingIntent
+import android.content.BroadcastReceiver
 import android.content.ContentValues
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.net.Uri
+import android.os.Build
 import android.provider.Telephony
 import android.telephony.SmsManager
+import androidx.core.content.ContextCompat
 import java.util.Calendar
 
 /**
@@ -121,11 +128,88 @@ class UjumbeRepository(private val context: Context) {
      * [recentMessages] reflects it immediately (some OEM dialers/SMS apps
      * do this automatically when this app is the default SMS app; this app
      * is explicitly NOT the default SMS app, so it is done manually here).
+     *
+     * [onResult] (PLAN.md Phase 4, "Andika ujumbe" — explicit user
+     * request: "the message should be sent directly but also receive a
+     * notification that the message has arrived by voice") is called
+     * once Android's OS-level send actually completes — [SmsManager]'s
+     * send calls are asynchronous and fire a [PendingIntent] broadcast
+     * when the radio layer reports success/failure; this is the ONLY
+     * reliable way to know a message genuinely went out (as opposed to
+     * assuming success right after the `sendMultipartTextMessage` call
+     * returns, which only means "queued", not "sent" — a dropped/failed
+     * send would otherwise get a false "sent" announcement). This does
+     * NOT suppress the mandatory Android system "Allow <app> to send
+     * SMS?" confirmation dialog that appears for any app that is not
+     * the phone's default SMS app — that is an OS-level anti-fraud
+     * protection with no app-facing API to bypass or auto-dismiss (see
+     * PLAN.md Phase 4 "Andika ujumbe" history for the full Option A
+     * [become default SMS app] vs Option B [voice heads-up + spoken
+     * send confirmation] discussion — Option B, this function, is what
+     * was chosen).
+     *
+     * A fresh [BroadcastReceiver] is registered per call and
+     * unregisters itself once every part's result has been reported
+     * (or after [SEND_RESULT_TIMEOUT_MS] elapses with no response, so a
+     * caller's [onResult] is never left uncalled if the OS never
+     * broadcasts back for some reason).
      */
-    fun sendSms(number: String, body: String) {
+    fun sendSms(number: String, body: String, onResult: (Boolean) -> Unit = {}) {
         val smsManager = context.getSystemService(SmsManager::class.java)
         val parts = smsManager.divideMessage(body)
-        smsManager.sendMultipartTextMessage(number, null, parts, null, null)
+
+        val action = "${context.packageName}.SMS_SENT_${System.nanoTime()}"
+        val sentIntents = ArrayList<PendingIntent>(parts.size)
+        val resultsReceived = booleanArrayOf(false)
+        var remaining = parts.size
+        var allSucceeded = true
+
+        lateinit var receiver: BroadcastReceiver
+        val finish = { success: Boolean ->
+            if (!resultsReceived[0]) {
+                resultsReceived[0] = true
+                try {
+                    context.unregisterReceiver(receiver)
+                } catch (_: IllegalArgumentException) {
+                    // Already unregistered (e.g. by the timeout path) — fine.
+                }
+                onResult(success)
+            }
+        }
+
+        receiver = object : BroadcastReceiver() {
+            override fun onReceive(ctx: Context, intent: Intent) {
+                if (resultCode != Activity.RESULT_OK) allSucceeded = false
+                remaining--
+                if (remaining <= 0) finish(allSucceeded)
+            }
+        }
+        val receiverFlags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            Context.RECEIVER_NOT_EXPORTED
+        } else {
+            0
+        }
+        ContextCompat.registerReceiver(context, receiver, IntentFilter(action), receiverFlags)
+
+        for (i in parts.indices) {
+            sentIntents.add(
+                PendingIntent.getBroadcast(
+                    context,
+                    i,
+                    Intent(action).setPackage(context.packageName),
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+                ),
+            )
+        }
+        smsManager.sendMultipartTextMessage(number, null, parts, sentIntents, null)
+
+        // Safety net: if the OS never broadcasts back (seen on some OEM
+        // SMS stacks when the user dismisses the system confirmation
+        // dialog without choosing Send/Cancel explicitly), don't leave
+        // the caller's onResult permanently uncalled.
+        android.os.Handler(context.mainLooper).postDelayed({
+            if (!resultsReceived[0]) finish(false)
+        }, SEND_RESULT_TIMEOUT_MS)
 
         val values = ContentValues().apply {
             put(Telephony.Sms.ADDRESS, number)
@@ -137,6 +221,18 @@ class UjumbeRepository(private val context: Context) {
     }
 
     companion object {
+        /**
+         * Safety-net timeout (PLAN.md Phase 4, "Andika ujumbe" send
+         * result): if Android's SMS radio layer never broadcasts a
+         * sent-result back (observed on some OEM stacks when the
+         * mandatory system confirmation dialog is dismissed without an
+         * explicit Send/Cancel tap), [sendSms]'s [onResult] callback is
+         * still guaranteed to fire — as a failure — rather than leaving
+         * the UI stuck waiting forever for a voice confirmation that
+         * will never come.
+         */
+        private const val SEND_RESULT_TIMEOUT_MS = 15_000L
+
         /**
          * Formats [timestampMs] as a short Swahili relative-time phrase
          * for the "Soma ujumbe" spoken preview (PLAN.md Phase 4, Option

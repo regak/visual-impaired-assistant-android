@@ -354,6 +354,10 @@ private fun GestureNavContent() {
     var composerRecipientNumber by remember { mutableStateOf<String?>(null) }
     var composerBodyDraft by remember { mutableStateOf<String?>(null) }
     var composerBodyPendingSend by remember { mutableStateOf(false) }
+    // Guards against a second double-tap re-triggering sendSms while the
+    // first call's async OS-level result is still pending (PLAN.md Phase
+    // 4 "Andika ujumbe" Option B send-result wiring).
+    var composerSendInFlight by remember { mutableStateOf(false) }
     var isComposerRecording by remember { mutableStateOf(false) }
 
     // READ_SMS is declared in the manifest but, per Android 6+ runtime
@@ -847,14 +851,30 @@ private fun GestureNavContent() {
                                     } else if (!composerBodyPendingSend) {
                                         composerBodyPendingSend = true
                                         announce("Utatuma kwa $label: $body. Gusa mara mbili tena kutuma, au sugua chini kughairi.")
-                                    } else {
+                                    } else if (!composerSendInFlight) {
+                                        // Android shows its own mandatory system
+                                        // confirmation dialog here (this app is not
+                                        // the default SMS app) — cannot be
+                                        // auto-dismissed from app code, so this
+                                        // heads-up just tells the user it's coming
+                                        // instead of it being a surprise, per
+                                        // PLAN.md Phase 4 "Andika ujumbe" Option B.
+                                        composerSendInFlight = true
+                                        announce("Mfumo utakuuliza kuthibitisha. Bonyeza Tuma.") // "The system will ask you to confirm. Tap Send."
                                         try {
-                                            ujumbeRepository.sendSms(number, body)
-                                            composerActive = false
-                                            composerBodyPendingSend = false
-                                            depth = 1
-                                            announce("Ujumbe umetumwa kwa $label.") // "Message sent to <recipient>."
+                                            ujumbeRepository.sendSms(number, body) { success ->
+                                                composerSendInFlight = false
+                                                composerBodyPendingSend = false
+                                                if (success) {
+                                                    composerActive = false
+                                                    depth = 1
+                                                    announce("Ujumbe umetumwa kwa $label.") // "Message sent to <recipient>."
+                                                } else {
+                                                    announce("Imeshindikana kutuma ujumbe. Gusa mara mbili kujaribu tena.") // "Failed to send message. Double-tap to try again."
+                                                }
+                                            }
                                         } catch (e: Exception) {
+                                            composerSendInFlight = false
                                             composerBodyPendingSend = false
                                             announce("Imeshindikana kutuma ujumbe: ${e.message}") // "Failed to send message: <error>"
                                         }

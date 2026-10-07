@@ -820,6 +820,47 @@ one feature at a time, each independently verified, once this is solid.
     sighted testers/family helpers (this app's actual non-sighted users
     don't rely on it). `gradle compileDebugKotlin`/`assembleDebug` both
     exit 0, no warnings.
+38. [x] **"Andika ujumbe" async send-result wiring + system-dialog
+    heads-up** (explicit user request, with screenshot of the system
+    "Allow <app> to send SMS?" dialog: "after confirm the message and
+    double tap it shows this pop up. can we skip this so that once we
+    double tap after confirming the message the message should be sent
+    directly but also receive a notification that the message has
+    arrived by voice." — investigated and explained that this is
+    Android's own OS-level anti-fraud confirmation for any app that
+    isn't the phone's default SMS app, not something this app's code
+    shows and cannot be suppressed without taking on the full default-
+    SMS-app role (presented as Option A, out of scope — full
+    SmsReceiver/MmsReceiver/conversation-UI/ROLE_SMS implementation,
+    would also take over ALL SMS handling on the phone). User chose
+    Option B: keep the system dialog, smooth the UX around it instead.
+    - `UjumbeRepository.sendSms` signature changed from fire-and-forget
+      to `sendSms(number, body, onResult: (Boolean) -> Unit = {})` —
+      registers a one-shot `BroadcastReceiver` + per-part
+      `PendingIntent`s as `sentIntent`s on
+      `SmsManager.sendMultipartTextMessage`, so `onResult` only fires
+      once Android's radio layer actually reports success/failure for
+      every part, not immediately after the call returns (which only
+      means "queued", not "sent" — a silently dropped send would
+      otherwise get a false "umetumwa" announcement). 15s
+      `SEND_RESULT_TIMEOUT_MS` safety net calls `onResult(false)` if the
+      OS never broadcasts back at all (observed possible on some OEM
+      stacks if the system dialog is dismissed without an explicit
+      Send/Cancel tap).
+    - Depth 5's SECOND double-tap now: speaks *"Mfumo utakuuliza
+      kuthibitisha. Bonyeza Tuma."* (heads-up that the system dialog is
+      about to appear) BEFORE calling `sendSms`, then waits for the
+      async `onResult` callback — *"Ujumbe umetumwa kwa [jina]."* on
+      success, *"Imeshindikana kutuma ujumbe. Gusa mara mbili kujaribu
+      tena."* on failure (lets the user retry without re-dictating the
+      whole message). New `composerSendInFlight` guard prevents a
+      third double-tap from firing a second concurrent send while the
+      first is still pending.
+    - `gradle compileDebugKotlin`/`assembleDebug` both exit 0, no
+      warnings. Not yet tested by the user on a real device — the
+      system confirmation dialog itself (tap "Send"/"Allow") is still
+      a required manual step on every single send; this cannot be
+      automated away without becoming the default SMS app.
 
 ## Phase 5 — Hardening & on-device testing checklist
 
