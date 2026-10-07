@@ -691,135 +691,175 @@ private fun GestureNavContent() {
             )
         } else if (depth == 4) {
             // "Andika ujumbe" recipient capture screen (PLAN.md Phase 4,
-            // merged record+confirm region — explicit user request:
-            // "Increase the place where you can press and hold the
-            // button and release... Same area can also be used for...
-            // confirm/cancel". ONE full-size region does both jobs via
-            // [gestureNavigation]'s holdToRecord mode: hold anywhere on
-            // it to record (onHoldStart/onHoldEnd), tap/double-tap/
-            // swipe-down anywhere on it for the normal confirm/cancel
-            // gestures — previously split across two stacked boxes,
-            // which cramped the usable hold area to half the screen.
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .weight(1f)
-                    .gestureNavigation(
-                        holdToRecord = true,
-                        onHoldStart = { startComposerRecording() },
-                        onHoldEnd = { stopComposerRecording() },
-                    ) { event ->
-                        when (event) {
-                            GestureEvent.SingleTap -> {
-                                announce(
-                                    composerRecipientDraft?.let { "Ulisema: $it." }
-                                        ?: "Bado hujasema jina au namba. Shikilia hapa.",
-                                )
-                            }
-                            GestureEvent.DoubleTap -> {
-                                val draft = composerRecipientDraft
-                                if (draft == null) {
-                                    announce("Bado hujasema jina au namba. Shikilia hapa.")
-                                } else {
-                                    val bestContact = simuRepository.searchContactsByVoicedName(draft, maxResults = 1).firstOrNull()
-                                    composerRecipientNumber = bestContact?.number ?: draft
-                                    composerRecipientLabel = bestContact?.displayName ?: draft
-                                    composerBodyDraft = null
-                                    depth = 5
-                                    announce("Shikilia hapa na useme ujumbe wako, kisha achia.") // "Hold here and say your message, then release."
-                                }
-                            }
-                            GestureEvent.SwipeDown -> {
-                                composerActive = false
-                                depth = 1
-                                announce("Umeghairi. Haujatuma ujumbe.") // "You cancelled. You have not sent a message."
-                            }
-                            else -> {}
-                        }
-                    },
-                contentAlignment = Alignment.Center,
+            // press-and-hold-to-speak/release-to-transcribe rebuild —
+            // explicit user request, murmur-android pattern). Two
+            // separate pointer-input regions so "hold to record" never
+            // has to be disambiguated from "tap to confirm" by the
+            // gesture recognizer: the top RECORD button is a plain
+            // press/release detector (mirrors murmur-android's
+            // `DictationController` demo verbatim), the bottom CONFIRM
+            // area is this app's normal [gestureNavigation] (single-tap
+            // repeats the current draft, double-tap resolves the
+            // contact and advances to depth 5, swipe-down cancels back
+            // to the Ujumbe sub-menu at depth 1).
+            Column(
+                modifier = Modifier.fillMaxSize().weight(1f),
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Text(
-                    text = if (isComposerRecording) {
-                        "Inasikiliza... achia kumaliza" // "Listening... release to finish"
-                    } else {
-                        composerRecipientDraft?.let { "Ulisema: $it.\n\nGusa mara mbili kuthibitisha. Sugua chini kughairi." }
-                            ?: "Shikilia hapa useme mpokeaji.\n\nGusa mara mbili kuthibitisha. Sugua chini kughairi."
-                    },
-                    fontSize = 18.sp,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .pointerInput(Unit) {
+                            detectTapGestures(
+                                onPress = {
+                                    startComposerRecording()
+                                    tryAwaitRelease()
+                                    stopComposerRecording()
+                                },
+                            )
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = if (isComposerRecording) {
+                            "Inasikiliza... achia kumaliza" // "Listening... release to finish"
+                        } else {
+                            "Shikilia hapa useme mpokeaji" // "Hold here and say the recipient"
+                        },
+                        fontSize = 20.sp,
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .gestureNavigation { event ->
+                            when (event) {
+                                GestureEvent.SingleTap -> {
+                                    announce(
+                                        composerRecipientDraft?.let { "Ulisema: $it." }
+                                            ?: "Bado hujasema jina au namba. Shikilia kitufe juu.",
+                                    )
+                                }
+                                GestureEvent.DoubleTap -> {
+                                    val draft = composerRecipientDraft
+                                    if (draft == null) {
+                                        announce("Bado hujasema jina au namba. Shikilia kitufe juu.")
+                                    } else {
+                                        val bestContact = simuRepository.searchContactsByVoicedName(draft, maxResults = 1).firstOrNull()
+                                        composerRecipientNumber = bestContact?.number ?: draft
+                                        composerRecipientLabel = bestContact?.displayName ?: draft
+                                        composerBodyDraft = null
+                                        depth = 5
+                                        announce("Shikilia kitufe na useme ujumbe wako, kisha achia.") // "Hold the button and say your message, then release."
+                                    }
+                                }
+                                GestureEvent.SwipeDown -> {
+                                    composerActive = false
+                                    depth = 1
+                                    announce("Umeghairi. Haujatuma ujumbe.") // "You cancelled. You have not sent a message."
+                                }
+                                else -> {}
+                            }
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = "Gusa mara mbili kuthibitisha. Sugua chini kughairi.", // "Double-tap to confirm. Swipe down to cancel."
+                        fontSize = 14.sp,
+                    )
+                }
             }
         } else if (depth == 5) {
-            // "Andika ujumbe" message-body capture screen — same merged
-            // single-region mechanic as depth 4. Double-tap here does a
-            // FINAL combined readback (recipient + full body) and
-            // actually sends on the SECOND double-tap in a row, directly
+            // "Andika ujumbe" message-body capture screen — same two-
+            // region mechanic as depth 4. Double-tap here does a FINAL
+            // combined readback (recipient + full body) and actually
+            // sends on the SECOND double-tap in a row, directly
             // addressing the thesis §3.2.2.2 "message verification
             // after finishing writing" finding: the user gets one more
             // explicit confirm gate before anything is sent, not an
             // immediate send on the first confirm.
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .weight(1f)
-                    .gestureNavigation(
-                        holdToRecord = true,
-                        onHoldStart = { startComposerRecording() },
-                        onHoldEnd = { stopComposerRecording() },
-                    ) { event ->
-                        when (event) {
-                            GestureEvent.SingleTap -> {
-                                announce(
-                                    composerBodyDraft?.let { "Ulisema: $it." }
-                                        ?: "Bado hujasema ujumbe. Shikilia hapa.",
-                                )
-                            }
-                            GestureEvent.DoubleTap -> {
-                                val body = composerBodyDraft
-                                val label = composerRecipientLabel
-                                val number = composerRecipientNumber
-                                if (body == null || label == null || number == null) {
-                                    announce("Bado hujasema ujumbe. Shikilia hapa.")
-                                } else if (!composerBodyPendingSend) {
-                                    composerBodyPendingSend = true
-                                    announce("Utatuma kwa $label: $body. Gusa mara mbili tena kutuma, au sugua chini kughairi.")
-                                } else {
-                                    try {
-                                        ujumbeRepository.sendSms(number, body)
-                                        composerActive = false
-                                        composerBodyPendingSend = false
-                                        depth = 1
-                                        announce("Ujumbe umetumwa kwa $label.") // "Message sent to <recipient>."
-                                    } catch (e: Exception) {
-                                        composerBodyPendingSend = false
-                                        announce("Imeshindikana kutuma ujumbe: ${e.message}") // "Failed to send message: <error>"
+            Column(
+                modifier = Modifier.fillMaxSize().weight(1f),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .pointerInput(Unit) {
+                            detectTapGestures(
+                                onPress = {
+                                    startComposerRecording()
+                                    tryAwaitRelease()
+                                    stopComposerRecording()
+                                },
+                            )
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = if (isComposerRecording) {
+                            "Inasikiliza... achia kumaliza"
+                        } else {
+                            "Shikilia hapa useme ujumbe" // "Hold here and say the message"
+                        },
+                        fontSize = 20.sp,
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .gestureNavigation { event ->
+                            when (event) {
+                                GestureEvent.SingleTap -> {
+                                    announce(
+                                        composerBodyDraft?.let { "Ulisema: $it." }
+                                            ?: "Bado hujasema ujumbe. Shikilia kitufe juu.",
+                                    )
+                                }
+                                GestureEvent.DoubleTap -> {
+                                    val body = composerBodyDraft
+                                    val label = composerRecipientLabel
+                                    val number = composerRecipientNumber
+                                    if (body == null || label == null || number == null) {
+                                        announce("Bado hujasema ujumbe. Shikilia kitufe juu.")
+                                    } else if (!composerBodyPendingSend) {
+                                        composerBodyPendingSend = true
+                                        announce("Utatuma kwa $label: $body. Gusa mara mbili tena kutuma, au sugua chini kughairi.")
+                                    } else {
+                                        try {
+                                            ujumbeRepository.sendSms(number, body)
+                                            composerActive = false
+                                            composerBodyPendingSend = false
+                                            depth = 1
+                                            announce("Ujumbe umetumwa kwa $label.") // "Message sent to <recipient>."
+                                        } catch (e: Exception) {
+                                            composerBodyPendingSend = false
+                                            announce("Imeshindikana kutuma ujumbe: ${e.message}") // "Failed to send message: <error>"
+                                        }
                                     }
                                 }
+                                GestureEvent.SwipeDown -> {
+                                    composerBodyPendingSend = false
+                                    depth = 4
+                                    announce(
+                                        composerRecipientDraft?.let { "Ulisema: $it." }
+                                            ?: "Shikilia kitufe na useme jina au namba ya mpokeaji, kisha achia.",
+                                    )
+                                }
+                                else -> {}
                             }
-                            GestureEvent.SwipeDown -> {
-                                composerBodyPendingSend = false
-                                depth = 4
-                                announce(
-                                    composerRecipientDraft?.let { "Ulisema: $it." }
-                                        ?: "Shikilia hapa na useme jina au namba ya mpokeaji, kisha achia.",
-                                )
-                            }
-                            else -> {}
-                        }
-                    },
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = if (isComposerRecording) {
-                        "Inasikiliza... achia kumaliza"
-                    } else {
-                        composerBodyDraft?.let { "Ulisema: $it.\n\nGusa mara mbili kuthibitisha na kutuma. Sugua chini kurudi nyuma." }
-                            ?: "Shikilia hapa useme ujumbe.\n\nGusa mara mbili kuthibitisha na kutuma. Sugua chini kurudi nyuma."
-                    },
-                    fontSize = 18.sp,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                )
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = "Gusa mara mbili kuthibitisha na kutuma. Sugua chini kurudi nyuma.", // "Double-tap to confirm and send. Swipe down to go back."
+                        fontSize = 14.sp,
+                    )
+                }
             }
         }
 

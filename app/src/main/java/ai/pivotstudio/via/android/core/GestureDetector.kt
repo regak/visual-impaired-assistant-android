@@ -44,17 +44,6 @@ object GestureTuning {
     const val DOUBLE_TAP_WINDOW_MS = 300L
     const val LONG_PRESS_MS = 500L
     const val SWIPE_MIN_DISTANCE_DP = 48f
-    /**
-     * Hold-to-record threshold (PLAN.md Phase 4, "Andika ujumbe" merged
-     * record+confirm region — explicit user request: "Increase the
-     * place where you can press and hold the button and release...
-     * Same area can also be used for... confirm/cancel"). Deliberately
-     * shorter than [LONG_PRESS_MS] so recording starts promptly once
-     * the user commits to holding, without being so short that an
-     * ordinary tap-in-progress (before release) ever accidentally
-     * starts the mic.
-     */
-    const val HOLD_TO_RECORD_MS = 350L
 }
 
 /**
@@ -68,32 +57,12 @@ object GestureTuning {
  * swipe) > swipe (released after moving at least [GestureTuning.SWIPE_MIN_DISTANCE_DP]
  * in one direction) > tap (released quickly with little movement — then
  * raced against a second tap to decide single vs double).
- *
- * [holdToRecord] (PLAN.md Phase 4, "Andika ujumbe"): when true, a long
- * hold is reported via [onHoldStart]/[onHoldEnd] instead of
- * [GestureEvent.LongPress] — [onHoldStart] fires once
- * [GestureTuning.HOLD_TO_RECORD_MS] elapses with the finger still down
- * and roughly stationary, [onHoldEnd] fires on release. This lets ONE
- * region be both the press-and-hold-to-speak/release-to-transcribe
- * record button AND the normal single/double-tap/swipe confirm area —
- * the two were previously split across separate stacked regions,
- * cramping the usable hold area; merging them means "hold anywhere on
- * this card to record, tap/double-tap/swipe anywhere on it to
- * confirm/cancel". Default false preserves the original
- * [GestureEvent.LongPress]-based behavior for every other screen in
- * the app (main-menu long-press for the sub-menu announcement, etc.) —
- * this is purely additive, no existing call site's behavior changes.
  */
-fun Modifier.gestureNavigation(
-    holdToRecord: Boolean = false,
-    onHoldStart: () -> Unit = {},
-    onHoldEnd: () -> Unit = {},
-    onGesture: (GestureEvent) -> Unit,
-): Modifier = composed {
+fun Modifier.gestureNavigation(onGesture: (GestureEvent) -> Unit): Modifier = composed {
     val density = LocalDensity.current
     val minSwipePx = with(density) { GestureTuning.SWIPE_MIN_DISTANCE_DP.dp.toPx() }
 
-    pointerInput(holdToRecord) {
+    pointerInput(Unit) {
         awaitEachGesture {
             val down = awaitFirstDown(pass = PointerEventPass.Main)
             val downPosition = down.position
@@ -114,8 +83,6 @@ fun Modifier.gestureNavigation(
             // that actually arrive, uninterrupted.
             var releasedPosition: Offset? = null
             var longPressFired = false
-            var holdStarted = false
-            val holdThresholdMs = if (holdToRecord) GestureTuning.HOLD_TO_RECORD_MS else GestureTuning.LONG_PRESS_MS
             while (true) {
                 val event = awaitPointerEvent(pass = PointerEventPass.Main)
                 val change = event.changes.firstOrNull { it.id == down.id } ?: break
@@ -123,28 +90,14 @@ fun Modifier.gestureNavigation(
                     releasedPosition = change.position
                     break
                 }
-                if (!longPressFired && !holdStarted && System.currentTimeMillis() - downTimeMs >= holdThresholdMs) {
+                if (!longPressFired && System.currentTimeMillis() - downTimeMs >= GestureTuning.LONG_PRESS_MS) {
                     val dxSoFar = change.position.x - downPosition.x
                     val dySoFar = change.position.y - downPosition.y
                     if (abs(dxSoFar) < minSwipePx && abs(dySoFar) < minSwipePx) {
-                        if (holdToRecord) {
-                            holdStarted = true
-                            onHoldStart()
-                        } else {
-                            longPressFired = true
-                            onGesture(GestureEvent.LongPress)
-                        }
+                        longPressFired = true
+                        onGesture(GestureEvent.LongPress)
                     }
                 }
-            }
-
-            if (holdStarted) {
-                // Recording was already started via onHoldStart() above —
-                // just report the release and end this gesture cycle
-                // cleanly, skipping tap/swipe classification entirely
-                // (a hold-then-release is never also a tap or swipe).
-                onHoldEnd()
-                return@awaitEachGesture
             }
 
             if (longPressFired) {

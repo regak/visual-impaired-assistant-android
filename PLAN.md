@@ -809,38 +809,6 @@ one feature at a time, each independently verified, once this is solid.
       new screens instead of `VoiceInputController`'s `speak` callback).
     - `gradle compileDebugKotlin`/`assembleDebug` both exit 0, no
       warnings. Not yet tested by the user on a real device.
-37. [x] **"Andika ujumbe" merged record+confirm into ONE full-size
-    region** (explicit user request, with screenshot of item 36's
-    split-screen layout: "Increase the place where you can press and
-    hold the button and release(Preferred area is the area within the
-    blue rectangle). Same area can also be used for 'Gusa mara mbili
-    kuthibitisha. Sugua chini kughairi'." — user approved the resulting
-    plan with "lets try it").
-    - **`GestureDetector.kt`'s `gestureNavigation` gained a new
-      `holdToRecord: Boolean` parameter + `onHoldStart`/`onHoldEnd`
-      callbacks**, purely additive — default `false` preserves the
-      original `GestureEvent.LongPress` behavior for every other
-      existing call site (main-menu long-press, etc.), unchanged. When
-      `holdToRecord = true`, a hold past the new (shorter)
-      `GestureTuning.HOLD_TO_RECORD_MS = 350L` threshold fires
-      `onHoldStart`/`onHoldEnd` instead of `LongPress`, letting a single
-      region be both the record button AND the tap/double-tap/swipe
-      confirm area — previously these were two separate stacked boxes
-      (a plain `detectTapGestures(onPress=...)` region for recording
-      above a `gestureNavigation` region for confirming below), which
-      is what cramped the usable hold area to half the screen in the
-      user's screenshot.
-    - Depth 4 and depth 5 (recipient/body capture screens from item 36)
-      collapsed from a two-box `Column` each into a SINGLE full-size
-      `Box` with one `gestureNavigation(holdToRecord = true, ...)`
-      modifier — hold anywhere on the whole card to record, tap/
-      double-tap/swipe-down anywhere on it to repeat/confirm/cancel.
-      All existing confirm/cancel/send logic (contact resolution,
-      two-step double-tap send gate, swipe-down-preserves-recipient-
-      draft) carried over unchanged, only the touch-region layout
-      changed.
-    - `gradle compileDebugKotlin`/`assembleDebug` both exit 0, no
-      warnings. Not yet tested by the user on a real device.
 
 ## Phase 5 — Hardening & on-device testing checklist
 
