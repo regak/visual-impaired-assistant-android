@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ASR Correction Methods — Comparative Architecture</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 40px;
+    background: #ffffff;
+    font-family: 'Inter', Arial, sans-serif;
+    color: #1a1a2e;
+  }
+  .wrap { max-width: 1300px; margin: 0 auto; }
+  h1 { font-size: 20px; font-weight: 700; margin: 0 0 4px; text-align: center; }
+  .subtitle { text-align: center; font-size: 12px; color: #555; margin-bottom: 24px; }
+  .caption {
+    margin-top: 18px; font-size: 11.5px; color: #333; line-height: 1.6;
+    border-top: 1px solid #ddd; padding-top: 14px;
+  }
+  .caption b { color: #111; }
+  svg text { font-family: 'Inter', Arial, sans-serif; }
+  .mono { font-family: 'JetBrains Mono', monospace; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Figure: Comparative Architecture of ASR Post-Processing Correction Methods</h1>
+  <div class="subtitle">Swahili offline ASR pipeline — visual-impaired-assistant (ai.pivotstudio.via.android)</div>
+
+  <svg width="1300" height="900" viewBox="0 0 1300 900" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#444"/>
+      </marker>
+      <marker id="arrowRed" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#c0392b"/>
+      </marker>
+      <marker id="arrowGreen" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#1e8449"/>
+      </marker>
+    </defs>
+
+    <!-- ============ STAGE 1: AUDIO INPUT ============ -->
+    <rect x="560" y="10" width="180" height="46" rx="8" fill="#eef1f8" stroke="#8892b0" stroke-width="1.5"/>
+    <text x="650" y="30" text-anchor="middle" font-size="13" font-weight="600">Raw Speech Audio</text>
+    <text x="650" y="45" text-anchor="middle" font-size="10" fill="#555">(Swahili, on-device mic)</text>
+
+    <line x1="650" y1="56" x2="650" y2="80" stroke="#444" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <!-- ============ STAGE 2: ASR ENGINES (parallel, compared) ============ -->
+    <rect x="60" y="82" width="1180" height="130" rx="10" fill="none" stroke="#b0b7c9" stroke-width="1.2" stroke-dasharray="6,4"/>
+    <text x="80" y="104" font-size="11.5" font-weight="700" fill="#555">STAGE 1 — ASR ENGINES COMPARED (30-clip Common Voice benchmark + 2 real device clips)</text>
+
+    <!-- Omnilingual -->
+    <rect x="100" y="118" width="300" height="78" rx="8" fill="#e8f4fc" stroke="#2e86c1" stroke-width="1.5"/>
+    <text x="250" y="138" text-anchor="middle" font-size="12.5" font-weight="600">Omnilingual CTC 300M (int8)</text>
+    <text x="250" y="154" text-anchor="middle" font-size="10" fill="#444">Current shipped engine · sherpa-onnx</text>
+    <text x="250" y="170" text-anchor="middle" font-size="10" fill="#444">1600+ languages, no SW-specific LM</text>
+    <text x="250" y="186" text-anchor="middle" font-size="11" font-weight="700" fill="#1a5276">Mean WER 0.532 · CER 0.165 · 2.24s</text>
+
+    <!-- MMS -->
+    <rect x="430" y="118" width="300" height="78" rx="8" fill="#eafaf1" stroke="#1e8449" stroke-width="1.5"/>
+    <text x="580" y="138" text-anchor="middle" font-size="12.5" font-weight="600">MMS-1B-all (Swahili adapter)</text>
+    <text x="580" y="154" text-anchor="middle" font-size="10" fill="#444">wav2vec2-adapters · onnx-asr</text>
+    <text x="580" y="170" text-anchor="middle" font-size="10" fill="#444">958MB base + 8.7MB SW adapter</text>
+    <text x="580" y="186" text-anchor="middle" font-size="11" font-weight="700" fill="#145a32">Mean WER 0.327 (best) · CER 0.098 · 3.07s</text>
+
+    <!-- Whisper tiny -->
+    <rect x="760" y="118" width="300" height="78" rx="8" fill="#fdedec" stroke="#c0392b" stroke-width="1.5"/>
+    <text x="910" y="138" text-anchor="middle" font-size="12.5" font-weight="600">Whisper tiny</text>
+    <text x="910" y="154" text-anchor="middle" font-size="10" fill="#444">sherpa-onnx int8, drop-in model-zoo</text>
+    <text x="910" y="170" text-anchor="middle" font-size="10" fill="#444">Thin Swahili training data</text>
+    <text x="910" y="186" text-anchor="middle" font-size="11" font-weight="700" fill="#922b21">Mean WER 1.159 (unusable) · CER 0.569 · 0.71s</text>
+
+    <!-- converge to correction stage -->
+    <line x1="250" y1="196" x2="650" y2="236" stroke="#444" stroke-width="1.3"/>
+    <line x1="580" y1="196" x2="650" y2="236" stroke="#444" stroke-width="1.3"/>
+    <line x1="910" y1="196" x2="650" y2="236" stroke="#444" stroke-width="1.3" marker-end="url(#arrow)"/>
+
+    <rect x="560" y="214" width="180" height="40" rx="8" fill="#f4f4f4" stroke="#888" stroke-width="1.3"/>
+    <text x="650" y="238" text-anchor="middle" font-size="11.5" font-weight="600">Raw ASR Hypothesis Text</text>
+
+    <line x1="650" y1="254" x2="650" y2="278" stroke="#444" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <!-- ============ STAGE 3: CORRECTION METHODS COMPARED ============ -->
+    <rect x="60" y="280" width="1180" height="420" rx="10" fill="none" stroke="#b0b7c9" stroke-width="1.2" stroke-dasharray="6,4"/>
+    <text x="80" y="302" font-size="11.5" font-weight="700" fill="#555">STAGE 2 — POST-PROCESSING CORRECTION METHODS COMPARED (same 96-transcript eval set, same WER/CER scoring)</text>
+
+    <!-- Branch 0: No correction baseline -->
+    <rect x="100" y="320" width="220" height="56" rx="8" fill="#f4f4f4" stroke="#888" stroke-width="1.3"/>
+    <text x="210" y="340" text-anchor="middle" font-size="11.5" font-weight="600">Baseline (no correction)</text>
+    <text x="210" y="356" text-anchor="middle" font-size="10.5" font-weight="700" fill="#333">Mean WER 0.6744</text>
+
+    <!-- Branch A: LLM correction -->
+    <rect x="100" y="400" width="220" height="150" rx="8" fill="#fdedec" stroke="#c0392b" stroke-width="1.5"/>
+    <text x="210" y="420" text-anchor="middle" font-size="11.5" font-weight="700" fill="#922b21">A · LLM Correction</text>
+    <text x="210" y="438" text-anchor="middle" font-size="9.5" fill="#444">AfriTeva v2 Base (428M T5,</text>
+    <text x="210" y="450" text-anchor="middle" font-size="9.5" fill="#444">untuned seq2seq)</text>
+    <text x="210" y="468" text-anchor="middle" font-size="9.5" fill="#444">Swahili Gemma 1B (GGUF</text>
+    <text x="210" y="480" text-anchor="middle" font-size="9.5" fill="#444">Q4_K_M, decoder LLM)</text>
+    <text x="210" y="500" text-anchor="middle" font-size="11" font-weight="700" fill="#922b21">WER → 0.975–0.976</text>
+    <text x="210" y="516" text-anchor="middle" font-size="9.5" fill="#922b21">(worse: hallucinates fluent</text>
+    <text x="210" y="528" text-anchor="middle" font-size="9.5" fill="#922b21">unrelated text)</text>
+    <text x="210" y="544" text-anchor="middle" font-size="9" fill="#777">✗ Not recommended</text>
+
+    <!-- Branch B: Dictionary v1 -->
+    <rect x="350" y="400" width="220" height="150" rx="8" fill="#fef9e7" stroke="#d4ac0d" stroke-width="1.5"/>
+    <text x="460" y="420" text-anchor="middle" font-size="11.5" font-weight="700" fill="#7d6608">B · Dictionary Correction v1</text>
+    <text x="460" y="438" text-anchor="middle" font-size="9.5" fill="#444">Flat wordlist (37.9k) → net worse</text>
+    <text x="460" y="454" text-anchor="middle" font-size="9.5" fill="#444">Hunspell sw_TZ expanded</text>
+    <text x="460" y="466" text-anchor="middle" font-size="9.5" fill="#444">(71.5k words, incl. morphology)</text>
+    <text x="460" y="482" text-anchor="middle" font-size="9.5" fill="#444">edit-distance ≤1, no gating</text>
+    <text x="460" y="500" text-anchor="middle" font-size="11" font-weight="700" fill="#7d6608">WER → 0.666 (improved)</text>
+    <text x="460" y="516" text-anchor="middle" font-size="9.5" fill="#7d6608">16 improved / 6 worse</text>
+    <text x="460" y="532" text-anchor="middle" font-size="9" fill="#777">△ Usable, some risk</text>
+
+    <!-- Branch C: Dictionary v2 gated (best) -->
+    <rect x="600" y="400" width="220" height="150" rx="8" fill="#eafaf1" stroke="#1e8449" stroke-width="2"/>
+    <text x="710" y="420" text-anchor="middle" font-size="11.5" font-weight="700" fill="#145a32">C · Dictionary Correction v2</text>
+    <text x="710" y="436" text-anchor="middle" font-size="9.5" fill="#444">Hunspell-expanded (71.5k) +</text>
+    <text x="710" y="448" text-anchor="middle" font-size="9.5" fill="#444">confidence-gating: abstain when</text>
+    <text x="710" y="460" text-anchor="middle" font-size="9.5" fill="#444">≥2 candidates tie at same distance</text>
+    <text x="710" y="478" text-anchor="middle" font-size="9.5" fill="#444">134 abstentions / 96 clips</text>
+    <text x="710" y="496" text-anchor="middle" font-size="11.5" font-weight="700" fill="#145a32">WER → 0.658 (best overall)</text>
+    <text x="710" y="512" text-anchor="middle" font-size="9.5" fill="#145a32">12 improved / 1 worse (12:1)</text>
+    <text x="710" y="530" text-anchor="middle" font-size="9.5" fill="#145a32">No hallucination by construction</text>
+    <text x="710" y="544" text-anchor="middle" font-size="9.5" font-weight="700" fill="#145a32">✓ Best result — recommended</text>
+
+    <!-- Branch D: Morphological analyzer (feasibility only) -->
+    <rect x="850" y="400" width="220" height="150" rx="8" fill="#ebf5fb" stroke="#2874a6" stroke-width="1.5" stroke-dasharray="5,3"/>
+    <text x="960" y="420" text-anchor="middle" font-size="11.5" font-weight="700" fill="#1a5276">D · Morphological Agreement</text>
+    <text x="960" y="438" text-anchor="middle" font-size="9.5" fill="#444">apertium-swa (lttoolbox + hfst</text>
+    <text x="960" y="450" text-anchor="middle" font-size="9.5" fill="#444">+ lexd), fully offline, no root</text>
+    <text x="960" y="468" text-anchor="middle" font-size="9.5" fill="#444">Confirmed: distinguishes noun</text>
+    <text x="960" y="480" text-anchor="middle" font-size="9.5" fill="#444">class/agreement (cl5/pl vs cl3/pl)</text>
+    <text x="960" y="498" text-anchor="middle" font-size="9.5" fill="#1a5276">Noun lexicon coverage incomplete</text>
+    <text x="960" y="514" text-anchor="middle" font-size="9.5" fill="#1a5276">(e.g. "macho" unrecognized)</text>
+    <text x="960" y="532" text-anchor="middle" font-size="9.5" fill="#777">Feasibility confirmed; WER impact</text>
+    <text x="960" y="544" text-anchor="middle" font-size="9" font-weight="700" fill="#777">not yet measured — future work</text>
+
+    <!-- arrows baseline -> branches -->
+    <line x1="650" y1="254" x2="650" y2="278" stroke="#444" stroke-width="0" marker-end="url(#arrow)"/>
+    <line x1="650" y1="278" x2="210" y2="320" stroke="#444" stroke-width="1.1" marker-end="url(#arrow)"/>
+    <line x1="650" y1="278" x2="460" y2="320" stroke="#444" stroke-width="0" />
+    <line x1="210" y1="376" x2="210" y2="400" stroke="#c0392b" stroke-width="1.2" marker-end="url(#arrowRed)"/>
+    <line x1="650" y1="278" x2="460" y2="376" stroke="#444" stroke-width="1.1"/>
+    <line x1="460" y1="376" x2="460" y2="400" stroke="#d4ac0d" stroke-width="1.2" marker-end="url(#arrow)"/>
+    <line x1="650" y1="278" x2="710" y2="376" stroke="#444" stroke-width="1.1"/>
+    <line x1="710" y1="376" x2="710" y2="400" stroke="#1e8449" stroke-width="1.5" marker-end="url(#arrowGreen)"/>
+    <line x1="650" y1="278" x2="960" y2="376" stroke="#444" stroke-width="1.1" marker-end="url(#arrow)"/>
+    <line x1="960" y1="376" x2="960" y2="400" stroke="#2874a6" stroke-width="1.2" stroke-dasharray="5,3" marker-end="url(#arrow)"/>
+
+    <!-- ============ STAGE 4: EVALUATION ============ -->
+    <line x1="210" y1="550" x2="650" y2="716" stroke="#c0392b" stroke-width="1" stroke-dasharray="3,3"/>
+    <line x1="460" y1="550" x2="650" y2="716" stroke="#d4ac0d" stroke-width="1" stroke-dasharray="3,3"/>
+    <line x1="710" y1="550" x2="650" y2="716" stroke="#1e8449" stroke-width="1.4" marker-end="url(#arrowGreen)"/>
+    <line x1="960" y1="550" x2="650" y2="716" stroke="#2874a6" stroke-width="1" stroke-dasharray="3,3"/>
+
+    <rect x="500" y="718" width="300" height="58" rx="8" fill="#eef1f8" stroke="#8892b0" stroke-width="1.5"/>
+    <text x="650" y="740" text-anchor="middle" font-size="12.5" font-weight="700">WER / CER Scoring</text>
+    <text x="650" y="756" text-anchor="middle" font-size="10" fill="#555">vs. same 96 ground-truth references</text>
+    <text x="650" y="770" text-anchor="middle" font-size="10" fill="#555">+ latency / memory profiling</text>
+
+    <line x1="650" y1="776" x2="650" y2="798" stroke="#444" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <rect x="400" y="800" width="500" height="80" rx="10" fill="#eafaf1" stroke="#1e8449" stroke-width="2"/>
+    <text x="650" y="824" text-anchor="middle" font-size="13" font-weight="700" fill="#145a32">Recommended pipeline (current finding)</text>
+    <text x="650" y="844" text-anchor="middle" font-size="11" fill="#1a4d2e">MMS-1B-all ASR → Dictionary Correction v2 (gated)</text>
+    <text x="650" y="862" text-anchor="middle" font-size="10.5" fill="#1a4d2e">Fully offline · zero hallucination risk · no engine swap yet applied</text>
+  </svg>
+
+  <div class="caption">
+    <b>Methodology.</b> All methods were evaluated on the same 96-transcript set (30 Swahili Common Voice clips + 2 real
+    on-device recordings, × 3 ASR engines each), scored for Word/Character Error Rate against identical ground-truth
+    references, measured against a baseline mean WER of 0.6744 (uncorrected ASR output). <b>LLM-based correction</b>
+    (AfriTeva v2 Base, Swahili Gemma 1B) consistently increased WER by hallucinating fluent but acoustically-unrelated
+    text — a known failure mode in post-ASR correction literature for low-resource languages. <b>Dictionary-based
+    correction</b>, bounded to a known Swahili vocabulary and therefore structurally incapable of hallucinating novel
+    text, reduced WER when built on a morphology-aware lexicon (Hunspell <span class="mono">sw_TZ</span>, 71.5k words)
+    and improved further (12:1 improve:worsen ratio, best result overall) when gated to abstain on ambiguous
+    edit-distance ties rather than guessing. A full morphological/noun-class <b>agreement</b> checker
+    (<span class="mono">apertium-swa</span>) was confirmed technically feasible fully offline with no superuser access,
+    but its current noun lexicon coverage is insufficient for production use and is left as future work.
+  </div>
+</div>
+</body>
+</html>
