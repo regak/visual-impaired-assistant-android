@@ -49,6 +49,7 @@ import ai.pivotstudio.via.android.core.gestureNavigation
 import ai.pivotstudio.via.android.core.SpeechSegmenter
 import ai.pivotstudio.via.android.core.SwahiliNumberWordConverter
 import ai.pivotstudio.via.android.asr.OmnilingualAsrEngine
+import ai.pivotstudio.via.android.network.OpenAiChatClient
 import ai.pivotstudio.via.android.sms.UjumbeRepository
 import ai.pivotstudio.via.android.telephony.SimuRepository
 import ai.pivotstudio.via.android.tts.SpeechOutput
@@ -170,7 +171,7 @@ private data class SubPage(
     val opensComposer: Boolean = false,
 )
 
-/** Page order: Simu first, Ujumbe second — swipe right-to-left moves 0 -> 1. */
+/** Page order: Simu first, Ujumbe second, Ongea third — swipe right-to-left moves 0 -> 1 -> 2. */
 private enum class Page(
     val titleSw: String,
     val subtitleSw: String,
@@ -178,6 +179,15 @@ private enum class Page(
     val primaryActionSw: String,
     val subMenuSw: String,
     val subPages: List<SubPage>,
+    /**
+     * When true, double-tapping this top-level [Page] skips the normal
+     * depth-1 sub-pager entirely and jumps straight into the "Ongea"
+     * (Talk) AI-conversation screen at depth 6 instead — this app's
+     * recreation of ChatGPT's voice-conversation mode (explicit user
+     * request). Only [ONGEA] sets this; [SIMU]/[UJUMBE] are unaffected
+     * and keep going through the normal sub-pager at depth 1.
+     */
+    val opensOngea: Boolean = false,
 ) {
     SIMU(
         titleSw = "Simu",
@@ -225,6 +235,15 @@ private enum class Page(
             ),
         ),
     ),
+    ONGEA(
+        titleSw = "Ongea",
+        subtitleSw = "Ongea na msaidizi wa AI", // "Talk to the AI assistant"
+        instructionsSw = "Uko kwenye Ongea. Gusa mara mbili kuingia.",
+        primaryActionSw = "Unaingia Ongea...", // "Entering Talk..."
+        subMenuSw = "", // unused — opensOngea bypasses the sub-pager entirely
+        subPages = emptyList(),
+        opensOngea = true,
+    ),
 }
 
 /**
@@ -268,6 +287,17 @@ private const val ANDIKA_UJUMBE_RECIPIENT_PROMPT_SW =
 private const val ANDIKA_UJUMBE_BODY_PROMPT_SW =
     "Shikilia kitufe na useme ujumbe wako kisha achia kwenye eneo ya nusu ya juu ya simu. " +
         "Lakini, kwenye eneo ya nusu ya chini ya simu, gusa mara mbili kuthibitisha au sugua chini kughairi."
+
+/**
+ * "Ongea" (Talk) entry prompt — this app's recreation of ChatGPT's
+ * voice-conversation mode (explicit user request). Spoken each time the
+ * user enters the Ongea screen (double-tap on the Ongea top-level page).
+ * English on purpose (the English-language AI-conversation mode
+ * requested), unlike the rest of this app's Swahili-first UX.
+ */
+private const val ONGEA_INTRO_PROMPT =
+    "You're in Talk mode. Hold anywhere on the screen and speak, release when you're done, " +
+        "and I'll answer out loud. Swipe down to exit."
 
 private fun PagerState.realIndex(itemCount: Int): Int =
     ((currentPage % itemCount) + itemCount) % itemCount
@@ -376,6 +406,17 @@ private fun GestureNavContent() {
     var composerSendInFlight by remember { mutableStateOf(false) }
     var isComposerRecording by remember { mutableStateOf(false) }
 
+    // "Ongea" (Talk) AI-conversation mode state (recreates ChatGPT's
+    // voice-conversation UX, explicit user request). ongeaChatClient is
+    // one OpenAiChatClient instance per screen-entry (reset() on each
+    // (re-)entry via onEnter/swipe-down, see GestureEvent.SwipeDown
+    // below) so conversation history doesn't leak between separate
+    // Ongea sessions. BuildConfig.OPENAI_API_KEY is baked in at compile
+    // time from local.properties — see app/build.gradle.kts.
+    val ongeaChatClient = remember { OpenAiChatClient(ai.pivotstudio.via.android.BuildConfig.OPENAI_API_KEY) }
+    var ongeaUserUtterance by remember { mutableStateOf<String?>(null) }
+    var ongeaWaitingForReply by remember { mutableStateOf(false) }
+
     // READ_SMS is declared in the manifest but, per Android 6+ runtime
     // permission rules, was never actually requested anywhere until this
     // pass — "Soma ujumbe" is the first feature that needs it. Requesting
@@ -461,7 +502,33 @@ private fun GestureNavContent() {
             isComposerRecording = false
             when (result) {
                 is DictationController.Result.Transcript -> {
-                    if (depth == 4) {
+                    if (depth == 6) {
+                        // "Ongea" (Talk) AI-conversation mode: send the
+                        // transcribed utterance straight to OpenAI and
+                        // speak back the reply — the ChatGPT-voice-mode
+                        // recreation this screen exists for. No readback
+                        // confirmation step here (unlike Andika ujumbe) —
+                        // explicit design choice: a confirm-before-send
+                        // step makes sense before an irreversible SMS
+                        // send, but would break the natural
+                        // speak-and-get-an-answer conversational flow
+                        // this screen recreates.
+                        ongeaUserUtterance = result.text
+                        ongeaWaitingForReply = true
+                        announce("Umesema: ${result.text}. Ninafikiria...") // "You said: <text>. I'm thinking..."
+                        coroutineScope.launch {
+                            when (val chatResult = ongeaChatClient.sendMessage(result.text)) {
+                                is OpenAiChatClient.ChatResult.Success -> {
+                                    ongeaWaitingForReply = false
+                                    announce(chatResult.reply)
+                                }
+                                is OpenAiChatClient.ChatResult.Failure -> {
+                                    ongeaWaitingForReply = false
+                                    announce(chatResult.message)
+                                }
+                            }
+                        }
+                    } else if (depth == 4) {
                         // Convert Swahili number-words to digits for the
                         // recipient field specifically (PLAN.md Phase 4 —
                         // explicit user request/screenshot: a dictated
@@ -555,8 +622,14 @@ private fun GestureNavContent() {
                     onStatusChange = announce,
                     onEnter = {
                         activeTopPageIndex = topPagerState.realIndex(pages.size)
-                        depth = 1
-                        announce(page.primaryActionSw)
+                        if (page.opensOngea) {
+                            ongeaChatClient.reset()
+                            depth = 6
+                            announce(ONGEA_INTRO_PROMPT)
+                        } else {
+                            depth = 1
+                            announce(page.primaryActionSw)
+                        }
                     },
                 )
             }
@@ -938,6 +1011,78 @@ private fun GestureNavContent() {
                     Text(
                         text = "Gusa mara mbili kuthibitisha na kutuma. Sugua chini kurudi nyuma.", // "Double-tap to confirm and send. Swipe down to go back."
                         fontSize = 14.sp,
+                    )
+                }
+            }
+        } else if (depth == 6) {
+            // "Ongea" (Talk) — this app's recreation of ChatGPT's voice
+            // conversation mode (explicit user request). Reuses the
+            // exact same press-and-hold-to-speak / release-to-transcribe
+            // record region as "Andika ujumbe" (depth 4/5), but with NO
+            // separate confirm area: a conversational back-and-forth
+            // doesn't need the readback-before-action gate that makes
+            // sense before an irreversible SMS send. The single record
+            // region takes up the full screen; single-tap repeats the
+            // last thing said (either the user's own utterance while
+            // waiting, or the AI's last reply), swipe-down exits back to
+            // the Ongea top-level page (depth 0) and resets the chat
+            // client's history via onEnter's ongeaChatClient.reset() the
+            // next time the user re-enters.
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .weight(1f)
+                    .background(if (isComposerRecording) RECORD_AREA_ACTIVE_COLOR else RECORD_AREA_COLOR)
+                    .pointerInput(Unit) {
+                        detectTapGestures(
+                            onPress = {
+                                if (!ongeaWaitingForReply) {
+                                    startComposerRecording()
+                                    tryAwaitRelease()
+                                    stopComposerRecording()
+                                }
+                            },
+                            onTap = {
+                                announce(
+                                    ongeaUserUtterance?.let { "Umesema: $it." }
+                                        ?: ONGEA_INTRO_PROMPT,
+                                )
+                            },
+                        )
+                    }
+                    .pointerInput(Unit) {
+                        var accumulatedDragY = 0f
+                        detectVerticalDragGestures(
+                            onDragStart = { accumulatedDragY = 0f },
+                            onVerticalDrag = { change, dragAmount ->
+                                accumulatedDragY += dragAmount
+                                change.consume()
+                            },
+                            onDragEnd = {
+                                if (accumulatedDragY > SWIPE_DOWN_THRESHOLD_PX) {
+                                    depth = 0
+                                    ongeaUserUtterance = null
+                                    announce("Umetoka Ongea.") // "You left Talk."
+                                }
+                                accumulatedDragY = 0f
+                            },
+                            onDragCancel = { accumulatedDragY = 0f },
+                        )
+                    },
+                contentAlignment = Alignment.Center,
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = when {
+                            isComposerRecording -> "Inasikiliza... achia kumaliza" // "Listening... release to finish"
+                            ongeaWaitingForReply -> "Ninafikiria..." // "I'm thinking..."
+                            else -> "Shikilia hapa na uongee" // "Hold here and talk"
+                        },
+                        fontSize = 20.sp,
+                    )
+                    Text(
+                        text = "Sugua chini kutoka Ongea", // "Swipe down to exit Talk"
+                        fontSize = 13.sp,
                     )
                 }
             }

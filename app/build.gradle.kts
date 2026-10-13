@@ -1,8 +1,25 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
 }
+
+// "Ongea" AI conversation mode (recreates ChatGPT's voice-conversation UX)
+// talks to the OpenAI Chat Completions API. The key lives in
+// local.properties (gitignored, never committed) and is baked into a
+// BuildConfig field at compile time — never hardcoded in source, never
+// logged. If the property is missing, fall back to an empty string so a
+// clean checkout still compiles; the chat screen handles the empty-key
+// case by announcing a clear error instead of crashing.
+val localProperties = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) {
+        file.inputStream().use { load(it) }
+    }
+}
+val openAiApiKey: String = localProperties.getProperty("OPENAI_API_KEY", "")
 
 android {
     namespace = "ai.pivotstudio.via.android"
@@ -14,6 +31,8 @@ android {
         targetSdk = 34
         versionCode = 1
         versionName = "0.1.0-scaffold"
+
+        buildConfigField("String", "OPENAI_API_KEY", "\"$openAiApiKey\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -45,6 +64,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     packaging {
