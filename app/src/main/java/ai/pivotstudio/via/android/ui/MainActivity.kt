@@ -3,6 +3,7 @@ package ai.pivotstudio.via.android.ui
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -44,6 +45,7 @@ import androidx.compose.ui.unit.sp
 import ai.pivotstudio.via.android.core.ModelDownloader
 import ai.pivotstudio.via.android.core.AudioCapture
 import ai.pivotstudio.via.android.core.DictationController
+import ai.pivotstudio.via.android.core.DictionaryCorrector
 import ai.pivotstudio.via.android.core.GestureEvent
 import ai.pivotstudio.via.android.core.gestureNavigation
 import ai.pivotstudio.via.android.core.SpeechSegmenter
@@ -446,8 +448,17 @@ private fun GestureNavContent() {
     val audioCapture = remember { AudioCapture(context) }
     val segmenter = remember { SpeechSegmenter(context) }
     val asrEngine = remember { OmnilingualAsrEngine(context) }
+    // Post-ASR Swahili spelling correction (Dict v2 "gated" from the
+    // correction-research program — see docs/asr-benchmark/dictionary-correction-v2.md).
+    // Does NOT replace/modify asrEngine above; runs as a separate pass
+    // over its output. Applied ONLY to the message body (depth 5) below,
+    // not the phone-number field (depth 4, which goes through
+    // SwahiliNumberWordConverter instead and would be harmed by
+    // dictionary-word correction).
+    val dictionaryCorrector = remember { DictionaryCorrector(context) }
     LaunchedEffect(Unit) {
         asrEngine.load()
+        dictionaryCorrector.load()
     }
     // composerActive suppresses the general auto-speak LaunchedEffect
     // below (keyed on statusMessage) while depth 4/5 are active, since
@@ -475,6 +486,26 @@ private fun GestureNavContent() {
                     } else if (depth == 5) {
                         composerBodyDraft = result.text
                         announce("Ulisema: ${result.text}. Gusa mara mbili kuthibitisha, au shikilia tena kurekodi upya.")
+                        // Run spelling correction in the background and swap the
+                        // draft in once ready (measured ~0.6s mean / 3.6s worst-case
+                        // on the research benchmark — too slow to block the
+                        // announce() above, so the user hears/sees the raw
+                        // transcript immediately and the text silently improves a
+                        // moment later; re-confirmation via double-tap still reads
+                        // back whatever composerBodyDraft holds at that time).
+                        coroutineScope.launch {
+                            val result2 = runCatching {
+                                dictionaryCorrector.correct(result.text)
+                            }.getOrNull()
+                            if (result2 != null && result2.correctedText != result.text) {
+                                Log.i(
+                                    "VIA/DictCorrector",
+                                    "Corrected body: \"${result.text}\" -> \"${result2.correctedText}\" " +
+                                        "(${result2.changes.size} changes, ${result2.abstentions.size} abstentions)",
+                                )
+                                composerBodyDraft = result2.correctedText
+                            }
+                        }
                     }
                 }
                 is DictationController.Result.NoSpeechDetected -> announce("Sikusikia chochote. Shikilia kitufe tena.") // "I didn't hear anything. Hold the button again."
