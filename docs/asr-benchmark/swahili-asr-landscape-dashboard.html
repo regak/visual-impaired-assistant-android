@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Swahili ASR Models & Datasets Dashboard</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', Arial, sans-serif; background: #0b1220; color: #e6e9ef; padding: 32px; }
+  .wrap { max-width: 1400px; margin: 0 auto; }
+  .header { margin-bottom: 20px; }
+  .header h1 { font-size: 22px; font-weight: 800; color: #fff; }
+  .header .sub { font-size: 12.5px; color: #8893a8; margin-top: 4px; }
+
+  .cards { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 22px; }
+  .card { background: #121b2e; border: 1px solid #1f2a42; border-radius: 10px; padding: 16px; }
+  .card .label { font-size: 10.5px; color: #8893a8; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin-bottom: 6px; }
+  .card .value { font-size: 24px; font-weight: 800; color: #fff; }
+  .card .delta { font-size: 11px; margin-top: 4px; color: #6fcf97; }
+
+  table { width: 100%; border-collapse: collapse; background: #121b2e; border-radius: 10px; overflow: hidden; border: 1px solid #1f2a42; }
+  thead th { background: #17223a; color: #aab4c8; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 700; text-align: left; padding: 10px 12px; border-bottom: 2px solid #2a3a5c; }
+  tbody td { padding: 10px 12px; font-size: 12px; border-bottom: 1px solid #1a2438; vertical-align: middle; color: #d7dbe8; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: #16213a; }
+  .name { font-weight: 600; color: #fff; }
+  .year { font-family: 'Inter', monospace; font-weight: 700; color: #7aa8ff; }
+
+  .badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 12px; font-size: 10.5px; font-weight: 700; white-space: nowrap; }
+  .badge-model { background: rgba(52,211,153,0.15); color: #34d399; border: 1px solid rgba(52,211,153,0.4); }
+  .badge-dataset { background: rgba(96,165,250,0.15); color: #60a5fa; border: 1px solid rgba(96,165,250,0.4); }
+  .badge-both { background: rgba(251,191,36,0.15); color: #fbbf24; border: 1px solid rgba(251,191,36,0.4); }
+
+  .icon { width: 14px; height: 14px; display: inline-block; vertical-align: -2px; }
+  .link { color: #7aa8ff; font-size: 11px; text-decoration: none; }
+  .notes { font-size: 11px; color: #9aa4ba; max-width: 320px; }
+
+  .footer { margin-top: 20px; background: #121b2e; border: 1px solid #1f2a42; border-radius: 10px; padding: 16px 20px; display: flex; gap: 28px; align-items: flex-start; }
+  .footer .col { flex: 1; }
+  .footer .col h4 { font-size: 11px; color: #8893a8; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
+  .footer .col p { font-size: 12px; color: #c4cada; line-height: 1.5; }
+  .footer .legend { display: flex; gap: 14px; align-items: center; }
+  .footer .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #aab4c8; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <h1>Swahili ASR Models &amp; Datasets Landscape (2019&ndash;2026)</h1>
+    <div class="sub">Swahili-dedicated speech recognition research &mdash; verified against primary sources (arXiv / ACL Anthology / HuggingFace) &middot; visual-impaired-assistant project</div>
+  </div>
+
+  <div class="cards">
+    <div class="card">
+      <div class="label">Total Entries</div>
+      <div class="value">13</div>
+      <div class="delta">7-year window, 2019&ndash;2026</div>
+    </div>
+    <div class="card">
+      <div class="label">Models</div>
+      <div class="value">6</div>
+      <div class="delta" style="color:#60a5fa">Datasets: 5 &middot; Combined: 2</div>
+    </div>
+    <div class="card">
+      <div class="label">Largest Dataset</div>
+      <div class="value">680K hrs</div>
+      <div class="delta" style="color:#8893a8">Whisper (680K hrs, 98 langs, mostly non-SW)</div>
+    </div>
+    <div class="card">
+      <div class="label">Best Published WER</div>
+      <div class="value">3.24%</div>
+      <div class="delta">CPT wav2vec2-bert-2.0, 2026 (Common Voice SW)</div>
+    </div>
+    <div class="card">
+      <div class="label">Our Benchmark Winner</div>
+      <div class="value">MMS-1B</div>
+      <div class="delta">WER 0.327 vs Omnilingual 0.532, Whisper 1.159</div>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th><th>Type</th><th>Year</th><th>Org / Authors</th><th>Dataset Size</th><th>License</th><th>Access</th><th>Notes</th>
+      </tr>
+    </thead>
+    <tbody id="rows"></tbody>
+  </table>
+
+  <div class="footer">
+    <div class="col">
+      <h4>Coverage</h4>
+      <p>13 Swahili-dedicated entries verified against primary sources, spanning 2012 (lineage context) through 2026. Excludes broad multilingual-inclusive models (XLS-R's full 128-language base, WAXAL's full 21-language set) per current scope &mdash; flagged for a follow-up pass.</p>
+    </div>
+    <div class="col">
+      <h4>Key Finding</h4>
+      <p>Academic SOTA on Common Voice Swahili improved from 8.3% WER (XLS-R, 2021) to 3.24% WER (continued pretraining, 2026) &mdash; a 61% relative gain in 5 years, almost entirely via better pretraining/fine-tuning strategy rather than raw data volume.</p>
+    </div>
+    <div class="col">
+      <h4>Relevance to This App</h4>
+      <p>Our 3 benchmarked engines (Omnilingual, MMS, Whisper tiny) are all general multilingual models, not Swahili-dedicated fine-tunes. Several dedicated models here (w2v-bert-2.0-swahili-asr, CPT approach) report substantially lower WER and may be worth benchmarking directly.</p>
+    </div>
+    <div class="legend">
+      <div class="legend-item"><span class="dot" style="background:#34d399"></span>Model</div>
+      <div class="legend-item"><span class="dot" style="background:#60a5fa"></span>Dataset</div>
+      <div class="legend-item"><span class="dot" style="background:#fbbf24"></span>Model+Study</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const data = [["ALFFA Swahili (broadcast news)", "Dataset", "2012", "Gelas, Besacier, Pellegrino", "11.8 hours", "CC0/MIT", "openslr.org/25", "Lineage context; predates 7-yr window"], ["Mozilla Common Voice - Swahili", "Dataset", "2019", "Mozilla Foundation", "~200 hrs validated (CV16)", "CC0-1.0", "commonvoice.mozilla.org/sw", "Most-used Swahili ASR benchmark set"], ["XLS-R (incl. Swahili)", "Model", "2021", "Babu et al. (Meta AI)", "436K hrs / 128 langs", "MIT", "huggingface.co/facebook/wav2vec2-xls-r-2b", "Standard fine-tune base; 8.3% WER academic baseline"], ["Whisper tiny (incl. Swahili)", "Model", "2022", "Radford et al. (OpenAI)", "680K hrs / 98 langs", "MIT", "huggingface.co/openai/whisper-tiny", "Our benchmark: worst performer, WER 1.159"], ["FLEURS (sw_ke)", "Dataset", "2022", "Conneau et al. (Google)", "~12 hrs (sw_ke)", "CC-BY-4.0", "huggingface.co/datasets/google/fleurs", "Eval benchmark; fine-tune source for whisper-small-swh"], ["MMS-1B-all (Swahili adapter)", "Model", "2023", "Pratap et al. (Meta AI)", "~55K hrs (MMS-lab)", "CC-BY-NC 4.0", "huggingface.co/facebook/mms-1b-all", "Our benchmark: best performer, WER 0.327"], ["AfriSpeech (swahili_swa)", "Dataset", "2023", "AfriSpeech/Intron Health", "13,101 clips / 38.73 hrs", "Unspecified", "huggingface.co/datasets/AfriSpeech", "Religious-content skew confirmed; ng' phoneme absent"], ["w2v-bert-2.0-swahili-asr", "Model", "2024", "Badr al-Absi", "400+ hrs", "CC-BY-4.0", "huggingface.co/badrex/w2v-bert-2.0-swahili-asr", "In-domain WER <8.8%; genuine topic diversity"], ["Whisper Tiny FT (AfricanLP study)", "Model+Study", "2025", "Shukla, Sharma et al.", "5,520 samples", "ACL Open Access", "aclanthology.org/2025.africanlp-1.11", "Matches our own Whisper failure modes"], ["whisper-small-swh-finetuned", "Model", "2025", "adoamesh", "4.22 hrs (FLEURS)", "Unspecified", "huggingface.co/adoamesh/whisper-small-swh-finetuned", "68% relative WER improvement from 4hrs FT"], ["Swahili ASR Zindi Challenge", "Dataset+Challenge", "2025", "Nyaki, Nyankana, Mollel / ITU", "Unstated (eval set)", "CC-BY-SA 4.0", "huggingface.co/datasets/SartifyLLC", "On-device focus; winning WER 0.1822"], ["WAXAL-ASR (Swahili subset)", "Dataset", "2026", "Google Research + partners", "~1,250 hrs / 14 langs", "CC-BY-4.0", "huggingface.co/datasets/google/WaxalNLP", "Spontaneous speech; most recent large release"], ["CPT wav2vec2-bert-2.0 for Swahili", "Model+Study", "2026", "Mutisya, Mugane (Harvard)", "~200 hrs (CV16 pool)", "Unspecified", "arxiv.org/abs/2603.11378", "Current SOTA: 3.24% WER on CV Swahili"]];
+const typeClass = t => t.includes('Model') && t.includes('Study') ? 'badge-both' : t === 'Model' ? 'badge-model' : t.includes('Model') ? 'badge-both' : 'badge-dataset';
+const tbody = document.getElementById('rows');
+data.sort((a,b) => parseInt(b[2]) - parseInt(a[2]));
+for (const r of data) {
+  const [name, type, year, org, size, license, link, notes] = r;
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td class="name">${name}</td>
+    <td><span class="badge ${typeClass(type)}">${type}</span></td>
+    <td class="year">${year}</td>
+    <td>${org}</td>
+    <td>${size}</td>
+    <td>${license}</td>
+    <td><a class="link" href="#">${link}</a></td>
+    <td class="notes">${notes}</td>
+  `;
+  tbody.appendChild(tr);
+}
+</script>
+</body>
+</html>
