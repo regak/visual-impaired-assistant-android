@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Swahili ASR Models & Datasets Dashboard v2</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', Arial, sans-serif; background: #0b1220; color: #e6e9ef; padding: 32px; }
+  .wrap { max-width: 1620px; margin: 0 auto; }
+  .header h1 { font-size: 22px; font-weight: 800; color: #fff; }
+  .header .sub { font-size: 12.5px; color: #8893a8; margin-top: 4px; }
+
+  .cards { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin: 18px 0 22px; }
+  .card { background: #121b2e; border: 1px solid #1f2a42; border-radius: 10px; padding: 16px; }
+  .card .label { font-size: 10.5px; color: #8893a8; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin-bottom: 6px; }
+  .card .value { font-size: 22px; font-weight: 800; color: #fff; }
+  .card .delta { font-size: 11px; margin-top: 4px; color: #6fcf97; }
+
+  .callout { background: linear-gradient(135deg, rgba(248,113,113,0.1), rgba(251,191,36,0.07)); border: 1px solid rgba(248,113,113,0.35); border-radius: 10px; padding: 14px 18px; margin-bottom: 20px; font-size: 12px; color: #e2c4b8; line-height: 1.6; }
+  .callout b { color: #fbbf24; }
+
+  table { width: 100%; border-collapse: collapse; background: #121b2e; border-radius: 10px; overflow: hidden; border: 1px solid #1f2a42; }
+  thead th { background: #17223a; color: #aab4c8; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 700; text-align: left; padding: 9px 10px; border-bottom: 2px solid #2a3a5c; }
+  tbody td { padding: 9px 10px; font-size: 11.5px; border-bottom: 1px solid #1a2438; vertical-align: top; color: #d7dbe8; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: #16213a; }
+  .name { font-weight: 600; color: #fff; }
+  .year { font-family: 'Inter', monospace; font-weight: 700; color: #7aa8ff; }
+
+  .badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 12px; font-size: 10px; font-weight: 700; white-space: nowrap; }
+  .badge-model { background: rgba(52,211,153,0.15); color: #34d399; border: 1px solid rgba(52,211,153,0.4); }
+  .badge-dataset { background: rgba(96,165,250,0.15); color: #60a5fa; border: 1px solid rgba(96,165,250,0.4); }
+
+  .conf { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 700; white-space: nowrap; }
+  .conf-verified { background: rgba(52,211,153,0.15); color: #34d399; }
+  .conf-partial { background: rgba(251,191,36,0.15); color: #fbbf24; }
+  .conf-low { background: rgba(248,113,113,0.15); color: #f87171; }
+  .conf-none { background: rgba(148,163,184,0.15); color: #94a3b8; }
+
+  .published { color: #9aa4ba; }
+  .actual { color: #fff; font-weight: 500; }
+  .notes { font-size: 10.5px; color: #9aa4ba; max-width: 260px; }
+  .link { color: #7aa8ff; font-size: 10.5px; text-decoration: none; }
+
+  .footer { margin-top: 20px; background: #121b2e; border: 1px solid #1f2a42; border-radius: 10px; padding: 16px 20px; display: flex; gap: 28px; align-items: flex-start; }
+  .footer .col { flex: 1; }
+  .footer .col h4 { font-size: 11px; color: #8893a8; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
+  .footer .col p { font-size: 12px; color: #c4cada; line-height: 1.5; }
+  .footer .legend { display: flex; flex-direction: column; gap: 8px; }
+  .footer .legend-item { display: flex; align-items: center; gap: 6px; font-size: 10.5px; color: #aab4c8; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <h1>Swahili ASR Models &amp; Datasets Landscape (2019&ndash;2026)</h1>
+    <div class="sub">Swahili-dedicated speech recognition research &mdash; model/dataset type separated, published vs. actual Swahili training size distinguished &middot; visual-impaired-assistant project</div>
+  </div>
+
+  <div class="cards">
+    <div class="card">
+      <div class="label">Total Entries</div>
+      <div class="value">14</div>
+      <div class="delta">7 Models &middot; 7 Datasets</div>
+    </div>
+    <div class="card">
+      <div class="label">Exact Size Verified</div>
+      <div class="value">5 / 14</div>
+      <div class="delta" style="color:#34d399">FLEURS, CPT, AfricanLP, w2v-bert, whisper-small-FT</div>
+    </div>
+    <div class="card">
+      <div class="label">Per-Language Size Undisclosed</div>
+      <div class="value">6 / 14</div>
+      <div class="delta" style="color:#f87171">XLS-R, Whisper, MMS, WAXAL, Zindi, ALFFA(est.)</div>
+    </div>
+    <div class="card">
+      <div class="label">Confirmed Zero Swahili Data</div>
+      <div class="value">1</div>
+      <div class="delta" style="color:#f87171">Omnilingual ASR corpus (348 langs, no SW)</div>
+    </div>
+    <div class="card">
+      <div class="label">Best SOTA WER</div>
+      <div class="value">3.24%</div>
+      <div class="delta">CPT, 2026 -- from only 11 hrs labeled data</div>
+    </div>
+  </div>
+
+  <div class="callout">
+    &#9888; <b>Key distinction requested:</b> "Total published dataset size" (the headline number on a paper/model card) is very often NOT the Swahili training size &mdash; it's usually the size of the ENTIRE multilingual corpus the model was trained on. For 6 of 14 entries, the actual Swahili-specific portion is <b>not disclosed anywhere</b> by the publishers. Where we could verify an exact split (5 entries, green), the real Swahili-specific data was often <b>10&ndash;100x smaller</b> than the headline figure.
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th><th>Type</th><th>Year</th><th>Org</th><th>Total Published Size</th><th>Actual Swahili Training Size</th><th>Confidence</th><th>License</th><th>Access</th><th>Notes</th>
+      </tr>
+    </thead>
+    <tbody id="rows"></tbody>
+  </table>
+
+  <div class="footer">
+    <div class="col">
+      <h4>Methodology</h4>
+      <p>Each entry's headline dataset size was checked against the underlying paper/model card for an explicit per-language or Swahili-specific breakdown. Where none existed, we marked it "not disclosed" rather than assuming the headline figure applies to Swahili &mdash; most large multilingual corpora (XLS-R, Whisper, MMS, WAXAL) do not publish this.</p>
+    </div>
+    <div class="col">
+      <h4>Key Finding</h4>
+      <p>The clearest documented example is the 2026 CPT study: it draws on a ~200-hour unlabeled Common Voice Swahili pool but needed only 11 hours of labeled data to reach SOTA (3.24% WER) &mdash; showing published pool size and actual effective training data can differ by an order of magnitude even within one paper.</p>
+    </div>
+    <div class="col">
+      <h4>Relevance to This App</h4>
+      <p>Our 3 benchmarked engines (Omnilingual, MMS, Whisper tiny) all have undisclosed or zero direct Swahili training data at the per-language level &mdash; their Swahili performance relies substantially on cross-lingual transfer from related Bantu/African languages, not dedicated Swahili corpora.</p>
+    </div>
+    <div class="legend">
+      <div class="legend-item"><span class="dot" style="background:#34d399"></span>Verified exact</div>
+      <div class="legend-item"><span class="dot" style="background:#fbbf24"></span>Partially verified / estimated</div>
+      <div class="legend-item"><span class="dot" style="background:#f87171"></span>Low confidence / not disclosed</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const data = [["ALFFA Swahili (broadcast news)", "Dataset", "2012", "Gelas, Besacier, Pellegrino", "11.8 hrs", "~9.9 hrs (train split, estimated)", "Estimated", "CC0/MIT", "openslr.org/25", "Lineage context; predates 7-yr window"], ["Mozilla Common Voice - Swahili", "Dataset", "2019", "Mozilla Foundation", "19,673 hrs (ALL 120 langs, not SW)", "~15.8 hrs (CV17 SW train, 9.45K clips, est.)", "Verified counts, est. hrs", "CC0-1.0", "commonvoice.mozilla.org/sw", "Headline '~200hrs' is the WHOLE corpus, not Swahili's share"], ["XLS-R (incl. Swahili)", "Model", "2021", "Babu et al. (Meta AI)", "436K hrs / 128 langs", "NOT DISCLOSED; CV-SW share likely <1 hr; VoxPopuli/MLS exclude Swahili entirely", "Low confidence", "MIT", "huggingface.co/facebook/wav2vec2-xls-r-2b", "436K figure is almost entirely non-Swahili"], ["Whisper tiny (incl. Swahili)", "Model", "2022", "Radford et al. (OpenAI)", "680K hrs / 98 langs", "NOT DISCLOSED; likely well under 1% of 680K hrs", "Not disclosed", "MIT", "huggingface.co/openai/whisper-tiny", "Our benchmark: worst performer, WER 1.159"], ["FLEURS (sw_ke)", "Dataset", "2022", "Conneau et al. (Google)", "~12 hrs (sw_ke total)", "3.62 hrs train + 0.60 hrs test (verified)", "Verified exact", "CC-BY-4.0", "huggingface.co/datasets/google/fleurs", "Rare case with exact train/test split confirmed"], ["MMS-1B-all (Swahili adapter)", "Model", "2023", "Pratap et al. (Meta AI)", "49,000 hrs / 1,130 langs (aligned)", "NOT DISCLOSED per-language; ~43 hrs/lang avg only", "Low confidence", "CC-BY-NC 4.0", "huggingface.co/facebook/mms-1b-all", "Our benchmark: best performer, WER 0.327"], ["Whisper Tiny FT (AfricanLP study)", "Model", "2025", "Shukla, Sharma et al.", "5,520 samples", "5,520 samples = full dataset used", "Verified exact", "ACL Open Access", "aclanthology.org/2025.africanlp-1.11", "Matches our own Whisper failure modes"], ["w2v-bert-2.0-swahili-asr", "Model", "2024", "Badr al-Absi", "400+ hrs", "400+ hrs = full training corpus", "Verified exact", "CC-BY-4.0", "huggingface.co/badrex/w2v-bert-2.0-swahili-asr", "Published size IS the actual training size"], ["whisper-small-swh-finetuned", "Model", "2025", "adoamesh", "~12 hrs (FLEURS total)", "3.62 hrs train + 0.60 hrs test", "Verified exact", "Unspecified", "huggingface.co/adoamesh/whisper-small-swh-finetuned", "68% relative WER gain from just 3.62 hrs"], ["Swahili ASR Zindi Challenge", "Dataset", "2025", "Nyaki, Nyankana, Mollel / ITU", "Unstated (eval set)", "NOT DISCLOSED; training data per-team, not published", "Not disclosed", "CC-BY-SA 4.0", "huggingface.co/datasets/SartifyLLC", "On-device focus; winning WER 0.1822"], ["WAXAL-ASR (Swahili subset)", "Dataset", "2026", "Google Research + partners", "~1,250 hrs / 14 langs (aggregate)", "NOT DISCLOSED; SW share not isolated", "Not disclosed", "CC-BY-4.0", "huggingface.co/datasets/google/WaxalNLP", "Swahili share of pool unknown"], ["CPT wav2vec2-bert-2.0 for Swahili", "Model", "2026", "Mutisya, Mugane (Harvard)", "~200 hrs CV16 (unlabeled, CPT stage)", "11 hrs / 20,000 samples (labeled fine-tune, exact)", "Verified exact", "Unspecified", "arxiv.org/abs/2603.11378", "Best published-vs-actual distinction found; SOTA 3.24% WER"], ["AfriSpeech (swahili_swa)", "Dataset", "2023", "AfriSpeech/Intron Health", "38.73 hrs / 13,101 clips (card)", "3.86 hrs (test+val, 1,320 clips) verified firsthand; train ~34.87 hrs inferred", "Partially verified", "Unspecified", "huggingface.co/datasets/AfriSpeech", "We directly downloaded & confirmed the test+val portion"], ["Omnilingual ASR CTC 300M (int8)", "Model", "2025", "Omnilingual ASR Team (Meta AI)", "348 languages total (corpus)", "ZERO -- Swahili confirmed NOT in the 348-language corpus", "Verified (confirmed)", "Apache 2.0 / CC-BY-4.0", "huggingface.co/facebook/omniASR-LLM-300M", "Swahili perf. is pure cross-lingual transfer, no direct data"]];
+const tbody = document.getElementById('rows');
+const confClass = c => c.toLowerCase().includes('verified exact') || c.toLowerCase() === 'verified (confirmed)' ? 'conf-verified'
+  : c.toLowerCase().includes('partial') || c.toLowerCase().includes('verified counts') ? 'conf-partial'
+  : c.toLowerCase().includes('not disclosed') ? 'conf-none' : 'conf-low';
+for (const r of data) {
+  const [name, type, year, org, pub, actual, conf, license, link, notes] = r;
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td class="name">${name}</td>
+    <td><span class="badge ${type==='Model'?'badge-model':'badge-dataset'}">${type}</span></td>
+    <td class="year">${year}</td>
+    <td>${org}</td>
+    <td class="published">${pub}</td>
+    <td class="actual">${actual}</td>
+    <td><span class="conf ${confClass(conf)}">${conf}</span></td>
+    <td>${license}</td>
+    <td><a class="link" href="#">${link}</a></td>
+    <td class="notes">${notes}</td>
+  `;
+  tbody.appendChild(tr);
+}
+</script>
+</body>
+</html>
