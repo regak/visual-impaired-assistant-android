@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Swahili Dataset Phonetic Balance Dashboard</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', Arial, sans-serif; background: #0b1220; color: #e6e9ef; padding: 32px; }
+  .wrap { max-width: 1400px; margin: 0 auto; }
+  .header h1 { font-size: 22px; font-weight: 800; color: #fff; }
+  .header .sub { font-size: 12.5px; color: #8893a8; margin-top: 4px; }
+
+  .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 18px 0 22px; }
+  .card { background: #121b2e; border: 1px solid #1f2a42; border-radius: 10px; padding: 16px; }
+  .card .label { font-size: 10.5px; color: #8893a8; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin-bottom: 6px; }
+  .card .value { font-size: 24px; font-weight: 800; color: #fff; }
+  .card .delta { font-size: 11px; margin-top: 4px; color: #6fcf97; }
+
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 22px; }
+  .dcard { background: #121b2e; border: 1px solid #1f2a42; border-radius: 10px; padding: 18px; }
+  .dcard h3 { font-size: 14px; color: #fff; font-weight: 700; margin-bottom: 2px; }
+  .dcard .tag { font-size: 10.5px; color: #8893a8; margin-bottom: 14px; }
+  .stat-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid #1a2438; font-size: 12px; }
+  .stat-row:last-child { border-bottom: none; }
+  .stat-row .k { color: #9aa4ba; }
+  .stat-row .v { font-weight: 700; color: #fff; }
+  .bad { color: #f87171 !important; }
+  .mid { color: #fbbf24 !important; }
+  .good { color: #34d399 !important; }
+
+  .ngbar-wrap { margin-top: 14px; }
+  .ngbar-label { font-size: 10.5px; color: #8893a8; display: flex; justify-content: space-between; margin-bottom: 4px; }
+  .ngbar-track { width: 100%; height: 10px; background: #0b1220; border-radius: 6px; overflow: hidden; }
+  .ngbar-fill { height: 100%; border-radius: 6px; }
+
+  .badge-winner { display: inline-block; margin-top: 12px; padding: 4px 10px; border-radius: 12px; font-size: 10.5px; font-weight: 700; background: rgba(52,211,153,0.15); color: #34d399; border: 1px solid rgba(52,211,153,0.4); }
+  .badge-caution { display: inline-block; margin-top: 12px; padding: 4px 10px; border-radius: 12px; font-size: 10.5px; font-weight: 700; background: rgba(248,113,113,0.15); color: #f87171; border: 1px solid rgba(248,113,113,0.4); }
+  .badge-neutral { display: inline-block; margin-top: 12px; padding: 4px 10px; border-radius: 12px; font-size: 10.5px; font-weight: 700; background: rgba(96,165,250,0.15); color: #60a5fa; border: 1px solid rgba(96,165,250,0.4); }
+
+  table { width: 100%; border-collapse: collapse; background: #121b2e; border-radius: 10px; overflow: hidden; border: 1px solid #1f2a42; margin-bottom: 22px; }
+  thead th { background: #17223a; color: #aab4c8; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 700; text-align: left; padding: 10px 12px; border-bottom: 2px solid #2a3a5c; }
+  tbody td { padding: 9px 12px; font-size: 12px; border-bottom: 1px solid #1a2438; color: #d7dbe8; }
+  tbody tr:last-child td { border-bottom: none; }
+
+  .footer { background: #121b2e; border: 1px solid #1f2a42; border-radius: 10px; padding: 16px 20px; display: flex; gap: 28px; align-items: flex-start; }
+  .footer .col { flex: 1; }
+  .footer .col h4 { font-size: 11px; color: #8893a8; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
+  .footer .col p { font-size: 12px; color: #c4cada; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <h1>Swahili Dataset Phonetic &amp; Domain Balance Dashboard</h1>
+    <div class="sub">Real transcriptions pulled directly from 3 accessible Swahili ASR datasets &middot; visual-impaired-assistant project</div>
+  </div>
+
+  <div class="cards">
+    <div class="card">
+      <div class="label">Datasets Compared</div>
+      <div class="value">3</div>
+      <div class="delta" style="color:#8893a8">8,758 transcripts total</div>
+    </div>
+    <div class="card">
+      <div class="label">ng' Phoneme Gap</div>
+      <div class="value" style="color:#f87171">1 of 3</div>
+      <div class="delta" style="color:#f87171">AfriSpeech: 0 occurrences</div>
+    </div>
+    <div class="card">
+      <div class="label">Best ng' Coverage</div>
+      <div class="value" style="color:#34d399">167</div>
+      <div class="delta">w2v-bert-2.0 (400hr), 3,670 clips</div>
+    </div>
+    <div class="card">
+      <div class="label">Most Balanced Overall</div>
+      <div class="value" style="color:#34d399">w2v-bert</div>
+      <div class="delta">5 real domains, no topic skew found</div>
+    </div>
+  </div>
+
+  <div class="grid3">
+    <div class="dcard">
+      <h3>AfriSpeech swahili_swa</h3>
+      <div class="tag">Religious broadcast (Bible/Church recordings)</div>
+      <div class="stat-row"><span class="k">Transcripts</span><span class="v">1,320</span></div>
+      <div class="stat-row"><span class="k">Total words</span><span class="v">19,297</span></div>
+      <div class="stat-row"><span class="k">Unique words</span><span class="v">3,577 (18.54%)</span></div>
+      <div class="stat-row"><span class="k">Top-10 word share</span><span class="v">20.5%</span></div>
+      <div class="stat-row"><span class="k">Dominant topic word</span><span class="v bad">"yehova" 1.56%</span></div>
+      <div class="ngbar-wrap">
+        <div class="ngbar-label"><span>ng' phoneme coverage</span><span>0 / 1,320</span></div>
+        <div class="ngbar-track"><div class="ngbar-fill" style="width:0%; background:#f87171"></div></div>
+      </div>
+      <span class="badge-caution">Not recommended as primary source</span>
+    </div>
+
+    <div class="dcard">
+      <h3>FLEURS sw_ke</h3>
+      <div class="tag">Read-speech, Wikipedia/FLoRes-101 sentences</div>
+      <div class="stat-row"><span class="k">Transcripts</span><span class="v">3,768</span></div>
+      <div class="stat-row"><span class="k">Total words</span><span class="v">75,454</span></div>
+      <div class="stat-row"><span class="k">Unique words</span><span class="v">8,343 (11.06%)</span></div>
+      <div class="stat-row"><span class="k">Top-10 word share</span><span class="v">23.33%</span></div>
+      <div class="stat-row"><span class="k">Data quality flag</span><span class="v mid">"king's" (English leak)</span></div>
+      <div class="ngbar-wrap">
+        <div class="ngbar-label"><span>ng' phoneme coverage</span><span>11 / 3,768</span></div>
+        <div class="ngbar-track"><div class="ngbar-fill" style="width:15%; background:#fbbf24"></div></div>
+      </div>
+      <span class="badge-neutral">Good for eval, thin for training</span>
+    </div>
+
+    <div class="dcard">
+      <h3>w2v-bert-2.0 (400hr)</h3>
+      <div class="tag">Multi-domain: Health, Govt, Finance, Education, Agri</div>
+      <div class="stat-row"><span class="k">Transcripts</span><span class="v">3,670 (sample)</span></div>
+      <div class="stat-row"><span class="k">Total words</span><span class="v">138,648</span></div>
+      <div class="stat-row"><span class="k">Unique words</span><span class="v">10,024 (7.23%)</span></div>
+      <div class="stat-row"><span class="k">Top-10 word share</span><span class="v">23.2%</span></div>
+      <div class="stat-row"><span class="k">Dominant topic word</span><span class="v good">None found</span></div>
+      <div class="ngbar-wrap">
+        <div class="ngbar-label"><span>ng' phoneme coverage</span><span>167 / 3,670</span></div>
+        <div class="ngbar-track"><div class="ngbar-fill" style="width:100%; background:#34d399"></div></div>
+      </div>
+      <span class="badge-winner">Best candidate of the 3</span>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr><th>Metric</th><th>AfriSpeech</th><th>FLEURS</th><th>w2v-bert-2.0</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Transcripts analyzed</td><td>1,320</td><td>3,768</td><td>3,670</td></tr>
+      <tr><td>Total words</td><td>19,297</td><td>75,454</td><td>138,648</td></tr>
+      <tr><td>Unique words / vocab ratio</td><td>3,577 (18.54%)</td><td>8,343 (11.06%)</td><td>10,024 (7.23%)</td></tr>
+      <tr><td>ng' phoneme occurrences</td><td style="color:#f87171;font-weight:700">0</td><td style="color:#fbbf24;font-weight:700">11</td><td style="color:#34d399;font-weight:700">167</td></tr>
+      <tr><td>Top-10 word share</td><td>20.5%</td><td>23.33%</td><td>23.2%</td></tr>
+      <tr><td>Domain skew found</td><td style="color:#f87171">Yes ("yehova" 1.56%)</td><td>None detected</td><td>None detected</td></tr>
+      <tr><td>Data quality flags</td><td>Religious-genre only</td><td>English leak ("king's")</td><td>None found</td></tr>
+    </tbody>
+  </table>
+
+  <div class="footer">
+    <div class="col">
+      <h4>Methodology</h4>
+      <p>Real transcriptions pulled directly from each HuggingFace source (not paraphrased) via pyarrow/parquet. Checked digraph/phoneme marker frequency, vocabulary diversity, and word-frequency skew as a domain-concentration proxy.</p>
+    </div>
+    <div class="col">
+      <h4>Key Finding</h4>
+      <p>The ng' phoneme gap found earlier in AfriSpeech is NOT a universal Swahili ASR data problem &mdash; it's specific to that one corpus. FLEURS and w2v-bert-2.0 both contain genuine ng' words (ng'ombe=cow, ng'aa=shine) confirmed by context.</p>
+    </div>
+    <div class="col">
+      <h4>Recommendation</h4>
+      <p>w2v-bert-2.0's underlying 400hr corpus (badrex/swahili-speech-400hr) is the most phonetically and topically balanced of the 3 accessible datasets &mdash; best candidate for future training/eval use in this app.</p>
+    </div>
+  </div>
+</div>
+</body>
+</html>
